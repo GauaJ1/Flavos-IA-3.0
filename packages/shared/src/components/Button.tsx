@@ -16,19 +16,19 @@ interface ButtonProps {
 
 const variantStyles: Record<string, React.CSSProperties> = {
   primary: {
-    background: 'linear-gradient(135deg, #7c5cfc, #b94cfc)',
+    background: 'var(--primary)',
     color: '#ffffff',
     border: 'none',
   },
   secondary: {
     background: 'transparent',
-    color: '#7c5cfc',
-    border: '1px solid #7c5cfc',
+    color: 'var(--primary)',
+    border: '1px solid var(--primary)',
   },
   ghost: {
     background: 'transparent',
-    color: '#9494a8',
-    border: '1px solid #2a2a3e',
+    color: 'var(--text-sec)',
+    border: '1px solid var(--border)',
   },
 };
 

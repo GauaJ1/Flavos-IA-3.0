@@ -77,34 +77,31 @@ export const MessageList: React.FC<MessageListProps> = ({
           style={{
             display: 'flex',
             alignItems: 'center',
-            padding: '8px 16px',
+            gap: 16,
+            padding: '16px 20px',
+            maxWidth: 980,
+            margin: '0 auto',
+            width: '100%',
             ...style?.loadingIndicator,
           }}
         >
-          <div
+          <img
+            src="/Flavos_3.png"
+            alt="Flavos"
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #7c5cfc, #b94cfc)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              fontSize: '14px',
-              fontWeight: 700,
-              marginRight: 8,
+              width: 36,
+              height: 36,
+              borderRadius: 8,
+              objectFit: 'contain',
+              flexShrink: 0,
             }}
-          >
-            F
-          </div>
+          />
           <div
             style={{
-              padding: '12px 16px',
-              borderRadius: '18px 18px 18px 4px',
-              background: '#1e1e2e',
-              color: '#9494a8',
-              fontSize: '14px',
+              padding: '6px 0',
+              color: 'var(--text-sec)',
+              fontSize: '1rem',
+              fontStyle: 'italic',
             }}
           >
             <span className="typing-indicator">Pensando...</span>
