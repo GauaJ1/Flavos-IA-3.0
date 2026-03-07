@@ -1,0 +1,128 @@
+/* ===================================================
+   Flavos IA 3.0 — Global Styles
+   =================================================== */
+
+/* Import Outfit */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+
+/* CSS Reset & Base */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Outfit", sans-serif;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ===================================================
+   Theme Variables (Vindos do useTheme via data-theme em JS)
+   Aqui mantemos apenas se precisar de fallback nativo,
+   mas o React vai aplicar via inline var() ou classes.
+   Nós configuramos a porta de entrada via data-theme no index.html e App.tsx.
+   =================================================== */
+
+[data-theme="dark"] {
+    --bg: #101623;
+    --surface: #101623;
+    --surface-variant: #283045;
+    --text: #edf3ff;
+    --text-sec: #97a7ca;
+    --primary: #1d7efd;
+    --border: #333e58;
+    --input-bg: #283045;
+    --placeholder: #c3cdde;
+}
+
+[data-theme="light"] {
+    --bg: #f3f7ff;
+    --surface: #f3f7ff;
+    --surface-variant: #dce6f9;
+    --text: #090c13;
+    --text-sec: #7b8cae;
+    --primary: #1d7efd;
+    --border: #d2ddf2;
+    --input-bg: #dce6f9;
+    --placeholder: #606982;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+/* ===================================================
+   Scrollbar
+   =================================================== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-sec);
+}
+
+/* ===================================================
+   Animations
+   =================================================== */
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.typing-indicator {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ===================================================
+   Links & Focus
+   =================================================== */
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(29, 126, 253, 0.3);
+  color: inherit;
+}

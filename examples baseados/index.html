@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script type="module" src="./app.js"></script>
+    <link rel="stylesheet" href="./style.css">
+    <script type="module" src="./script.js"></script>
+    <link rel="manifest" crossorigin="use-credentials" href="/manifest.json">
+    <script type="module" src="prism.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prism-themes@1.9.0/themes/prism-dracula.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/prismjs/components/prism-core.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs/plugins/autoloader/prism-autoloader.min.js"></script>
+    <link rel="shortcut icon" href="./Flavos-IA_NEW.png" type="image/x-icon">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <title>Flavos IA 2.9</title>
+</head>
+
+<div class="login-container">
+    <div class="login-wrapper">
+        <div class="login-box" id="login">
+            <img src="./Flavos-IA_NEW.png" alt="Flavos Logo" class="login-logo">
+            <h1 class="heading">Bem-vindo de volta!</h1>
+            <h2 class="sub-heading">Faça login para continuar</h2>
+            <form action="#">
+                <div class="input-box">
+                    <span class="material-symbols-rounded">mail</span>
+                    <input type="email" placeholder="Seu email" required>
+                </div>
+                <div class="input-box">
+                    <span class="material-symbols-rounded">lock</span>
+                    <input type="password" placeholder="Sua senha" required>
+                </div>
+                <button type="submit" class="login-btn">Entrar</button>
+            </form>
+            <div class="divider">
+                <span>ou</span>
+            </div>
+            <button class="google-btn">
+                <img src="https://www.gstatic.com/marketing-cms/assets/images/d5/dc/cfe9ce8b4425b410b49b7f2dd3f3/g.webp=s96-fcrop64=1,00000000ffffffff-rw"
+                    alt="Google logo">
+                Entrar com o Google
+            </button>
+            <p class="switch-form">Não tem uma conta? <a href="#" id="show-signup">Cadastre-se</a></p>
+        </div>
+
+        <div class="login-box" id="signup" style="display: none;">
+            <img src="./Flavos-IA_NEW.png" alt="Flavos Logo" class="login-logo">
+            <h1 class="heading">Crie sua conta</h1>
+            <h2 class="sub-heading">É rápido e fácil</h2>
+            <form action="#">
+                <div class="input-box">
+                    <span class="material-symbols-rounded">person</span>
+                    <!-- ADICIONADO: id para o campo de nome -->
+                    <input type="text" placeholder="Seu nome" id="signup-name" required>
+                </div>
+                <div class="input-box">
+                    <span class="material-symbols-rounded">mail</span>
+                    <input type="email" placeholder="Seu email" required>
+                </div>
+                <div class="input-box">
+                    <span class="material-symbols-rounded">lock</span>
+                    <input type="password" placeholder="Crie uma senha" required>
+                </div>
+                <button type="submit" class="login-btn">Cadastrar</button>
+            </form>
+            <div class="divider">
+                <span>ou</span>
+            </div>
+            <button class="google-btn">
+                <img src="https://www.gstatic.com/marketing-cms/assets/images/d5/dc/cfe9ce8b4425b410b49b7f2dd3f3/g.webp=s96-fcrop64=1,00000000ffffffff-rw"
+                    alt="Google logo">
+                Cadastrar com o Google
+            </button>
+            <p class="switch-form">Já tem uma conta? <a href="#" id="show-login">Faça login</a></p>
+        </div>
+    </div>
+</div>
+
+<div id="main-content" style="display: none;">
+
+    <div class="main-wrapper">
+        <div class="container">
+
+            <div class="sidebar" id="chat-sidebar">
+                <button id="sidebar-toggle" class="material-symbols-rounded">menu</button>
+                <h2>Chats</h2>
+                <ul id="chat-list"></ul>
+                <button id="new-chat-btn">
+                    <span class="material-symbols-rounded">add</span>
+                    <!-- Adicionando um ícone para o estado colapsado -->
+                    <span>Novo Chat</span> <!-- Texto que vamos esconder/mostrar -->
+                </button>
+            </div>
+
+            <!-- Overlay -->
+            <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+
+
+            <body>
+                <div>
+                    <div class="container">
+                        <!--Header do app-->
+                        <header class="app-header">
+                            <!-- ADICIONE ESTE BOTÃO ESPECÍFICO PARA O MOBILE -->
+                            <button id="mobile-sidebar-toggle" class="material-symbols-rounded">menu</button>
+                            <h1 class="heading" id="app-header-greeting">Olá</h1>
+                            <h2 class="sub-heading">Como posso te ajudar?</h2>
+                        </header>
+
+                        <ul class="suggestions">
+                            <li class="suggestion-item">
+                                <p class="text">Quem foi o campeão brasileiro de 1988?</p>
+                                <span class="material-symbols-rounded">
+                                    question_mark
+                                </span>
+                            </li>
+                            <li class="suggestion-item">
+                                <p class="text">Como cozinhar batata doce?</p>
+                                <span class="material-symbols-rounded">
+                                    explore
+                                </span>
+                            </li>
+                            <li class="suggestion-item">
+                                <p class="text">Projete um investimento daqui 10 anos com 10% de juros</p>
+                                <span class="material-symbols-rounded">
+                                    payments
+                                </span>
+                            </li>
+                        </ul>
+
+                        <!--Container dos Chats-->
+                        <div class="chats-container"></div>
+
+                        <!--Container dos Prompts-->
+                        <div class="prompt-container">
+                            <div class="prompt-wrapper">
+                                <form action="#" class="prompt-form">
+                                    <input type="text" class="prompt-input" placeholder="Pergunte qualquer coisa"
+                                        required>
+                                    <div class="prompt-actions">
+                                        <!--File upload-->
+                                        <div class="file-upload-wrapper">
+                                            <img src="#" alt="" class="file-preview">
+                                            <input type="file" accept="image/*, .pdf, .txt, .csv, audio/*, video/*"
+                                                id="file-input" hidden>
+                                            <button type="button"
+                                                class="file-icon material-symbols-rounded">description</button>
+                                            <button type="button" id="add-file-btn"
+                                                class="material-symbols-rounded">attach_file</button>
+                                            <button type="button" id="cancel-file-btn"
+                                                class="material-symbols-rounded">close</button>
+                                        </div>
+
+                                        <button type="button" id="stop-response-btn"
+                                            class="material-symbols-rounded">stop_circle</button>
+                                        <button id="send-prompt-btn" class="material-symbols-rounded">send</button>
+                                    </div>
+                                </form>
+                                <button id="theme-toggle-btn" class="material-symbols-rounded">light_mode</button>
+                                <!-- <button id="delete-chats-btn" class="material-symbols-rounded">delete</button> -->
+                                <!--? ANTIGO NOVO CHAT SEM A SIDEBAR-->
+                                <!-- ADICIONADO: Botão de Logout -->
+                                <button id="sign-out-btn" class="material-symbols-rounded">logout</button>
+                            </div>
+                            <p class="disclaimer-text">Atualmente Flavos IA pode cometer erros, reveja duas vezes para
+                                ver se a
+                                resposta está correta</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- resto do chat -->
+        </div>
+    </div>
+</div>
+<div id="image-viewer-modal" class="image-viewer">
+    <!-- Botão para fechar o modal -->
+    <span class="close-btn material-symbols-rounded">close</span>
+
+    <!-- Contêiner da imagem e controles de zoom -->
+    <div class="image-content">
+        <img id="modal-image" alt="Imagem Ampliada">
+    </div>
+
+    <!-- Controles de Zoom -->
+    <div class="zoom-controls">
+        <button id="zoom-out-btn" class="material-symbols-rounded">zoom_out</button>
+        <button id="zoom-in-btn" class="material-symbols-rounded">zoom_in</button>
+    </div>
+</div>
+<div id="delete-confirmation-modal" class="confirmation-modal">
+    <div class="modal-content">
+        <span class="modal-icon material-symbols-rounded">warning</span>
+        <h2>Confirmar Exclusão</h2>
+        <p>Você tem certeza que deseja deletar esta conversa? Todas as mensagens serão perdidas permanentemente.</p>
+        <p class="modal-hint">Esta ação não pode ser desfeita.</p>
+        <div class="modal-buttons">
+            <button id="cancel-delete-btn" class="modal-btn cancel">Cancelar</button>
+            <button id="confirm-delete-btn" class="modal-btn confirm">Deletar</button>
+        </div>
+    </div>
+</div>
+<!-- =============================================== -->
+<!-- = FIM DO MODAL VISUALIZADOR DE IMAGEM        = -->
+<!-- =============================================== -->
+
+
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/index.min.js"></script>
+
+    </body> <!-- O modal vai logo acima daqui -->
+
+</html>

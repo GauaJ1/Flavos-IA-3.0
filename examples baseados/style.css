@@ -1,0 +1,1299 @@
+/*Import Outfit */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Outfit", sans-serif;
+}
+
+:root{
+    /* Cores do tema escuro*/
+    --text-color: #edf3ff;
+    --subheading-color: #97a7ca;
+    --placeholder-color: #c3cdde;
+    --primary-color: #101623;
+    --secondary-color: #283045;
+    --secondary-hover-color: #333e58;
+    --scrollbar-color: #626a7f;
+}
+
+body.light-theme{
+    /* Cores do tema Claro */
+    --text-color: #090c13;
+    --subheading-color: #7b8cae;
+    --placeholder-color: #606982;
+    --primary-color: #f3f7ff;
+    --secondary-color: #dce6f9;
+    --secondary-hover-color: #d2ddf2;
+    --scrollbar-color: #a2aac2;
+}
+
+body{
+    color: var(--text-color);
+    background: var(--primary-color);
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 127px); /* altura total */
+    overflow: hidden; /* importante */
+}
+
+.container :where(.app-header, .suggestions, .message, .prompt-wrapper, .disclaimer-text){
+    margin: 0 auto;
+    width: 100%;
+    padding: 0 20px;
+    max-width: 980px;
+}
+
+.container .app-header{
+    margin-top: 4vh;
+}
+
+.app-header .heading{
+    font-size: 3rem;
+    width: fit-content;
+    background: linear-gradient(to right, #66ff4b, #ff5546);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.app-header .sub-heading{
+    font-size: 2.6rem;
+    margin-top: -5px;
+    color: var(--subheading-color)
+}
+
+/*Sugestoes Lista estilos*/
+.container .suggestions{
+    display: flex;
+    gap: 15px;
+    margin-top: 9.5vh;
+    list-style: none;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+/* 1. Esta regra continua escondendo as sugestões, como antes. */
+body.chats-active .container .suggestions {
+    display: none;
+}
+
+/* 2. Esta nova regra esconde APENAS o H1 e o H2 dentro do header, mas DEIXA o botão. */
+body.chats-active .container .app-header :where(.heading, .sub-heading) {
+    display: none;
+}
+
+.suggestions .suggestion-item{
+    width: 228px;
+    padding: 18px;
+    flex-shrink: 0;
+    display: flex;
+    cursor: pointer;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: space-between;
+    border-radius: 12px;
+    background: var(--secondary-color);
+    transition: 0.3 ease;
+}
+
+.suggestions .suggestion-item:hover{
+    background: var(--secondary-hover-color);
+}
+
+.suggestions .suggestion-item .text{
+    font-size: 1.1rem;
+}
+
+.suggestions .suggestion-item span{
+    height: 45px;
+    width: 45px;
+    margin-top: 35px;
+    display: flex;
+    align-self: flex-end;
+    align-items: center;
+    justify-content: center;
+    color: #1d7efd;
+    border-radius: 50%;
+    background: var(--primary-color);
+}
+
+.suggestions .suggestion-item:nth-child(2) span{
+    color: #28a745;
+}
+
+.suggestions .suggestion-item:nth-child(3) span{
+    color: #ffc107;
+}
+
+.suggestions .suggestion-item:nth-child(4) span{
+    color: #6f42c1;
+}
+
+/* Chats Container style*/
+.chats-container {
+    flex: 1;                /* ocupa o espaço restante */
+    overflow-y: auto;        /* agora ela é quem rola */
+    padding-bottom: 80px;    /* espaço pro input fixo */
+    scrollbar-width: none;
+}
+.chats-container::-webkit-scrollbar {
+    display: none;
+}
+
+.container .chats-container{
+    display: flex;
+    gap: 20px;
+    flex-direction: column;
+}
+
+.chats-container .message{
+    display: flex;
+    gap: 11px;
+    align-items: center;
+}
+
+.chats-container .bot-message .avatar{
+    height: 43px;
+    width: 43px;
+    flex-shrink: 0;
+    padding: 6px;
+    align-self: flex-start;
+    margin-right: -7px;
+    border-radius: 50%;
+    background-color: var(--secondary-color);
+    border: 1px solid var(--secondary-color);
+}
+
+.chats-container .bot-message.loading .avatar{
+    animation: rotate 3s linear infinite;
+}
+
+@keyframes rotate {
+    100%{
+        transform: rotate(360deg);
+    }
+}
+
+.chats-container .message .message-text{
+    padding: 3px 16px;
+    word-wrap: break-word;
+    white-space: pre-line;
+}
+
+.chats-container .bot-message{
+    margin: 9px auto;
+}
+
+.chats-container .user-message{
+    flex-direction: column;
+    align-items: flex-end;
+
+}
+
+.chats-container .user-message .message-text{
+    padding: 12px 16px;
+    max-width: 75%;
+    border-radius: 13px 13px 3px 13px;
+    background: var(--secondary-color);
+}
+
+.chats-container .user-message .img-attachment {
+    width: 50%;
+    margin-top: -7px;
+    border-radius: 13px 3px 13px 13px;
+}
+
+.chats-container .user-message .file-attachment {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    padding: 10px;
+    margin-top: -7px;
+    border-radius: 13px 3px 13px 13px;
+    background: var(--secondary-color);
+}
+
+.chats-container .user-message .file-attachment span {
+    color: #1d7efd;
+}
+
+/*Parte do Prompt*/
+
+.prompt-container{
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 16px 0;
+    background: var(--primary-color);
+}
+
+.prompt-container :where(.prompt-wrapper, .prompt-form, .prompt-actions) {
+    display: flex;
+    gap: 12px;
+    height: 56px;
+    align-items: center;
+}
+
+.prompt-wrapper .prompt-form{
+    width: 100%;
+    height: 100%;
+    border-radius: 130px;
+    background: var(--secondary-color);
+}
+
+.prompt-form .prompt-input{
+    height: 100%;
+    width: 100%;
+    background: none;
+    outline: none;
+    border: none;
+    font-size: 1rem;
+    padding-left: 24px;
+    color: var(--text-color);
+}
+
+.prompt-form .prompt-input::placeholder{
+    color: var(--placeholder-color);
+}
+
+.prompt-wrapper button{
+    width: 56px;
+    height: 100%;
+    border: none;
+    cursor: pointer;
+    border-radius: 50%;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+    color: var(--text-color);
+    background: var(--secondary-color);
+    transition: 0.3s ease;
+}
+
+.prompt-wrapper :is(button:hover, .file-icon, #cancel-file-btn){
+    background: var(--secondary-hover-color);
+}
+
+.prompt-form .prompt-actions{
+    gap: 5px;
+    margin-right: 7px;
+}
+
+.prompt-wrapper .prompt-form :where(.file-upload-wrapper, button, img)  {
+    position: relative;
+    height: 45px;
+    width: 45px;
+}
+
+.prompt-form #send-prompt-btn{
+    color: #fff;
+    display: none;
+    background: #1d7efd;
+}
+
+.prompt-form .prompt-input:valid ~ .prompt-actions #send-prompt-btn{
+    display: block;
+}
+
+.prompt-form .file-upload-wrapper :where(button, img) {
+    position: absolute;
+    border-radius: 50%;
+    object-fit: cover;
+    display: none;
+}
+
+.prompt-form .file-upload-wrapper #add-file-btn,
+.prompt-form .file-upload-wrapper.active.img-attached img,
+.prompt-form .file-upload-wrapper.active.file-attached .file-icon,
+.prompt-form .file-upload-wrapper.active:hover #cancel-file-btn {
+    display: block;
+}
+
+.prompt-form .file-upload-wrapper.active #add-file-btn{
+    display: none;
+}
+
+.prompt-form :is(#cancel-file-btn, #stop-response-btn:hover){
+    color: #d62939;
+}
+
+.prompt-form .file-icon{
+    color: #1d7efd;
+}
+
+.prompt-form #send-prompt-btn:hover{
+    background: #0264e3;
+}
+
+.prompt-form #stop-response-btn,
+body.bot-responding .prompt-form .file-upload-wrapper{
+    display: none;
+}
+
+body.bot-responding .prompt-form #stop-response-btn {
+    display: block;
+}
+
+.prompt-container .disclaimer-text{
+    text-align: center;
+    font-size: 0.9rem;
+    padding: 16px 20px 0;
+    color: var(--placeholder-color);
+}
+
+/* Responsive media query code para telas pequenas */
+@media (max-width: 768px){
+    .container{
+        padding: 20px 0 100px;
+    }
+
+    .app-header :is(.heading, .sub-heading){
+        font-size: 2rem;
+        line-height: 1.4;
+    }
+
+    .prompt-form .file-upload-wrapper.active #cancel-file-btn {
+        opacity: 0;
+    }
+
+    .prompt-wrapper.hide-controls :where(#theme-toggle-btn, #delete-chats-btn){
+        display: none;
+    }
+
+    body.chats-active .app-header {
+    margin-top: 0;
+    padding: 10px 0;
+    /* Isso transforma o header numa pequena barra de topo quando um chat está ativo */
+}
+}
+
+.message strong {
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+.message em {
+    font-style: italic;
+}
+
+
+.message br {
+    display: block;
+    content: "";
+    margin: 8px 0;
+}
+pre, code{
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Estilo SUPER estiloso para blocos de código */
+.code-block-container {
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 1.5em 0;
+    box-shadow: 
+        0 4px 6px rgba(0, 0, 0, 0.1),
+        0 10px 20px rgba(0, 0, 0, 0.15);
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.code-block-container:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        0 6px 12px rgba(0, 0, 0, 0.15),
+        0 15px 30px rgba(0, 0, 0, 0.2);
+}
+
+.code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background: linear-gradient(135deg, #3a3a3a, #2a2a2a);
+    border-bottom: 1px solid #444;
+    position: relative;
+}
+
+.code-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(to bottom, #6e48aa, #9d50bb);
+}
+
+.language-label {
+    color: #f1f1f1;
+    font-weight: 600;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.code-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.code-buttons button {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ccc;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.code-buttons button:hover {
+    background: rgba(110, 72, 170, 0.5);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.code-buttons button:active {
+    transform: translateY(1px);
+}
+
+.code-buttons .material-symbols-rounded {
+    font-size: 18px;
+}
+
+pre {
+    margin: 0;
+    padding: 15px;
+    overflow-x: auto;
+    background: #1e1e1e;
+    position: relative;
+}
+
+pre::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        linear-gradient(
+            to right,
+            transparent 0%,
+            rgba(255, 255, 255, 0.02) 50%,
+            transparent 100%
+        );
+    pointer-events: none;
+}
+
+/* Efeito de brilho ao passar o mouse */
+.code-block-container::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(
+        circle at var(--x) var(--y),
+        rgba(157, 80, 187, 0.1) 0%,
+        transparent 30%
+    );
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.code-block-container:hover::after {
+    opacity: 1;
+}
+
+/* Barra de rolagem personalizada */
+pre::-webkit-scrollbar {
+    height: 8px;
+}
+
+pre::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+pre::-webkit-scrollbar-thumb {
+    background: linear-gradient(to right, #6e48aa, #9d50bb);
+    border-radius: 4px;
+}
+
+pre::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to right, #7e58ba, #ad60cb);
+}
+
+/* Efeito de tracking para o brilho gradiente */
+.code-block-container {
+    cursor: default;
+}
+
+.code-block-container:hover {
+    --x: 50%;
+    --y: 50%;
+}
+
+.code-block-container {
+    will-change: transform, box-shadow;
+}
+
+/* --- Estilos da Tela de Login e Cadastro --- */
+
+.login-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+    background: var(--primary-color);
+}
+
+.login-wrapper {
+    max-width: 450px;
+    width: 100%;
+}
+
+.login-box {
+    background: var(--secondary-color);
+    padding: 40px;
+    border-radius: 20px;
+    border: 1px solid var(--secondary-hover-color);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.login-box .heading {
+    text-align: center;
+    font-size: 2.2rem;
+    background: linear-gradient(to right, #66ff4b, #ff5546);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 5px;
+}
+
+.login-box .sub-heading {
+    text-align: center;
+    font-size: 1.2rem;
+    color: var(--subheading-color);
+    margin-bottom: 30px;
+}
+
+.input-box {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.input-box input {
+    width: 100%;
+    height: 55px;
+    background: var(--primary-color);
+    border: 1px solid var(--secondary-hover-color);
+    border-radius: 12px;
+    padding: 0 20px 0 50px;
+    font-size: 1rem;
+    color: var(--text-color);
+    outline: none;
+    transition: border-color 0.3s ease;
+}
+
+.input-box input:focus {
+    border-color: #1d7efd;
+}
+
+.input-box .material-symbols-rounded {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--subheading-color);
+}
+
+.login-btn {
+    width: 100%;
+    height: 55px;
+    border: none;
+    border-radius: 12px;
+    background: #1d7efd;
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.login-btn:hover {
+    background: #0264e3;
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 25px 0;
+    color: var(--subheading-color);
+}
+
+.divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--secondary-hover-color);
+}
+
+.divider span {
+    padding: 0 15px;
+}
+
+.google-btn {
+    width: 100%;
+    height: 55px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    background: var(--primary-color);
+    border: 1px solid var(--secondary-hover-color);
+    color: var(--text-color);
+    border-radius: 12px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.google-btn:hover {
+    background: var(--secondary-hover-color);
+}
+
+.google-btn img {
+    width: 24px;
+    height: 24px;
+}
+
+.switch-form {
+    text-align: center;
+    margin-top: 25px;
+    color: var(--placeholder-color);
+}
+
+.switch-form a {
+    color: #1d7efd;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.switch-form a:hover {
+    text-decoration: underline;
+}
+
+.login-logo {
+    display: block; /* Para que margin: auto funcione */
+    margin: 0 auto 30px auto; /* Centraliza horizontalmente e adiciona margem inferior */
+    max-width: 150px; /* Define um tamanho máximo para a logo */
+    height: auto; /* Mantém a proporção da imagem */
+    border-radius: 15px; /* Adiciona bordas arredondadas, se desejar */
+}
+
+/* --- Responsividade para a Tela de Login --- */
+@media (max-width: 500px) {
+    .login-wrapper {
+        max-width: 100%;
+    }
+    .login-box {
+        padding: 25px;
+    }
+    .login-box .heading {
+        font-size: 1.8rem;
+    }
+    .login-box .sub-heading {
+        font-size: 1rem;
+    }
+    .login-logo {
+        max-width: 100px; /* Reduz o tamanho da logo em telas menores */
+        margin-bottom: 20px;
+    }
+}
+
+/*PENSAMENTOS*/
+/* Caixa de pensamentos colapsável */
+.collapsible {
+    margin-top: 12px;
+    border-radius: 10px;
+    background: var(--secondary-color);
+    overflow: hidden;
+}
+
+.collapsible-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 14px;
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+.collapsible-content {
+    max-height: 0;
+    overflow-y: auto;
+    transition: max-height 0.3s ease;
+    padding: 0 14px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-color) transparent;
+}
+
+/* Para scroll minimalista no pensamento */
+.collapsible-content::-webkit-scrollbar {
+    width: 6px;
+}
+.collapsible-content::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-color);
+    border-radius: 4px;
+}
+
+
+/* ========================================= */
+/* NOVA SEÇÃO DA SIDEBAR INTELIGENTE (v2)    */
+/* ========================================= */
+
+/* --- Estilo Base da Sidebar (Colapsada no Desktop) --- */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 80px;
+    background: var(--secondary-color);
+    border-right: 1px solid var(--secondary-hover-color);
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 200;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    transition: width 0.3s ease-in-out;
+}
+
+/* --- Estado Expandido (Hover ou Pinned) no Desktop --- */
+.sidebar:hover,
+.sidebar.pinned {
+    width: 260px;
+    align-items: stretch;
+}
+
+/* --- Botão de Menu (DENTRO da Sidebar - APENAS DESKTOP) --- */
+#sidebar-toggle {
+    display: none; /* Começa escondido */
+    align-self: flex-end;
+    margin-bottom: 20px;
+    font-size: 2rem;
+    color: var(--text-color);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+.sidebar.pinned #sidebar-toggle {
+    transform: rotate(180deg);
+}
+
+
+/* --- Título "Chats", Lista e Botão "Novo Chat" --- */
+/* (Essas regras podem permanecer as mesmas, pois estão corretas) */
+.sidebar h2 {
+    font-size: 1.5rem;
+    color: var(--text-color);
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 20px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    height: 0;
+    overflow: hidden;
+}
+.sidebar:hover h2,
+.sidebar.pinned h2 {
+    opacity: 1;
+    height: auto;
+}
+#chat-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+#chat-list li {
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    background: var(--primary-color);
+    color: var(--text-color);
+    transition: background 0.3s, transform 0.2s ease;
+    font-weight: 500;
+    white-space: nowrap; 
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#new-chat-btn {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #207c2a, #1b31a2);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    overflow: hidden;
+}
+#new-chat-btn span {
+    transition: all 0.2s ease;
+    max-width: 0;
+    opacity: 0;
+}
+.sidebar:hover #new-chat-btn span,
+.sidebar.pinned #new-chat-btn span {
+    max-width: 100px;
+    opacity: 1;
+}
+
+/* --- Conteúdo Principal e Overlay --- */
+.main-wrapper {
+    margin-left: 80px; 
+    transition: margin-left 0.3s ease-in-out;
+}
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 150;
+}
+.sidebar.open + .sidebar-overlay { /* Isso é para o mobile */
+    opacity: 1;
+    pointer-events: all;
+}
+
+
+/* ===================================== */
+/* --- CONTROLE DE VISIBILIDADE E RESPONSIVIDADE --- */
+/* ===================================== */
+
+/* --- BOTÃO DE MENU (FORA da Sidebar - APENAS MOBILE) --- */
+#mobile-sidebar-toggle {
+    display: none; /* Escondido por padrão */
+    font-size: 1.8rem;
+    color: var(--text-color);
+    background: none;
+    border: none;
+    cursor: pointer;
+    margin-right: 12px;
+}
+
+/* --- Mobile (até 768px) --- */
+@media (max-width: 768px) {
+    /* Mostra o botão do header e esconde o botão da sidebar */
+    #mobile-sidebar-toggle {
+        display: inline-flex; /* Usa flex para alinhar o ícone */
+    }
+    #sidebar-toggle {
+        display: none;
+    }
+    
+    /* Comportamento da sidebar: escondida fora da tela */
+    .sidebar {
+        transform: translateX(-100%);
+        width: 260px; /* Largura normal fixa no mobile */
+        align-items: stretch; /* Sempre expandida */
+        transition: transform 0.3s ease;
+    }
+    .sidebar.open {
+        transform: translateX(0);
+    }
+    
+    /* Quando expandida no mobile, força a exibição dos textos */
+    .sidebar.open h2,
+    .sidebar.open #new-chat-btn span {
+        opacity: 1;
+        height: auto;
+        max-width: 100px;
+    }
+
+    .main-wrapper {
+        margin-left: 0; /* Sem margem no mobile */
+    }
+}
+
+/* --- Desktop (acima de 768px) --- */
+@media (min-width: 769px) {
+    /* Esconde o botão do header e mostra o da sidebar */
+    #mobile-sidebar-toggle {
+        display: none;
+    }
+    #sidebar-toggle {
+        display: block; 
+    }
+}
+
+/* ========================================= */
+/* --- ESTILOS DO MODAL DE IMAGEM --- */
+/* ========================================= */
+
+/* O fundo escuro do modal (overlay) */
+.image-viewer {
+    position: fixed; /* Fica fixo na tela */
+    z-index: 1000; /* Fica acima de todo o resto */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85); /* Fundo preto semi-transparente */
+    display: none; /* Começa escondido */
+    justify-content: center;
+    align-items: center;
+    overflow: auto; /* Permite rolar se a imagem for maior que a tela */
+    cursor: zoom-out; /* O cursor indica que clicar no fundo fecha o modal */
+}
+/* A classe que vamos adicionar com JS para mostrar o modal */
+.image-viewer.show {
+    display: flex;
+}
+
+/* O contêiner da imagem */
+.image-viewer .image-content {
+    margin: auto;
+    position: relative;
+    max-width: 90%;
+    max-height: 85%;
+}
+
+/* A imagem em si */
+.image-viewer img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Garante que a imagem inteira apareça sem distorção */
+    border-radius: 8px;
+    cursor: grab; /* Cursor de "mão" para arrastar (futura implementação) */
+    transition: transform 0.2s ease-in-out; /* Transição suave para o zoom */
+}
+/* Quando o mouse está sendo pressionado na imagem */
+.image-viewer img:active {
+    cursor: grabbing;
+}
+
+
+/* Botão de fechar (X) no canto superior direito */
+.image-viewer .close-btn {
+    position: absolute;
+    top: 20px;
+    right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+.image-viewer .close-btn:hover {
+    color: #bbb;
+}
+
+/* Controles de Zoom na parte inferior */
+.image-viewer .zoom-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 20px;
+    padding: 5px 10px;
+    display: flex;
+    gap: 10px;
+    cursor: default; /* Cursor normal sobre os botões */
+}
+
+.image-viewer .zoom-controls button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 28px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.image-viewer .zoom-controls button:hover {
+    transform: scale(1.1);
+}
+.image-viewer .zoom-controls button:active {
+    transform: scale(0.95);
+}
+
+/* Para o contêiner do player de vídeo */
+.video-attachment-wrapper,
+.audio-attachment-wrapper {
+    max-width: 75%; /* Mesma largura máxima das mensagens */
+    margin-top: -7px;
+    border-radius: 13px 3px 13px 13px;
+    overflow: hidden; /* Garante que os cantos do player sejam arredondados */
+    background: var(--secondary-color);
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+/* O player de vídeo em si */
+.video-attachment {
+    width: 100%; /* Ocupa toda a largura do seu contêiner */
+    max-height: 400px; /* Evita que vídeos muito altos ocupem a tela inteira */
+    border-radius: 8px; /* Bordas arredondadas para o vídeo */
+}
+
+/* O player de áudio em si */
+.audio-attachment {
+    width: 100%; /* Ocupa toda a largura do seu contêiner */
+}
+
+/* Legenda com o nome do arquivo, opcional */
+.file-attachment-label {
+    font-size: 0.8rem;
+    color: var(--subheading-color);
+    margin-top: 8px;
+    text-align: center;
+    word-break: break-all; /* Quebra nomes de arquivo muito longos */
+}
+
+
+/* ============================================================== */
+/* --- ESTILOS COMPLETOS E CORRIGIDOS PARA ÍCONES DE ARQUIVO --- */
+/* ============================================================== */
+
+/* Layout base para o contêiner do anexo de arquivo */
+.chats-container .user-message .file-attachment {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 15px;
+    margin-top: -7px;
+    border-radius: 13px 3px 13px 13px;
+    background: var(--secondary-color);
+    max-width: 75%;
+    border: 1px solid transparent;
+}
+
+.file-attachment p {
+    margin: 0;
+    font-size: 0.9rem;
+    word-break: break-all;
+}
+
+/* --- REGRAS DE CORES MAIS ESPECÍFICAS (AGORA FUNCIONAM) --- */
+
+.file-attachment .material-symbols-rounded {
+    font-size: 2.2rem;
+    transition: color 0.3s ease;
+}
+
+/* Cor Padrão (azul claro) */
+.chats-container .user-message .file-attachment[data-file-type="file"] span {
+    color: #42A5F5; 
+}
+
+/* PDF (vermelho) */
+.chats-container .user-message .file-attachment[data-file-type="pdf"] span {
+    color: #EF5350;
+}
+
+/* Texto (cinza escuro) */
+.chats-container .user-message .file-attachment[data-file-type="article"] span {
+    color: #757575;
+}
+
+/* Documentos (azul escuro) */
+.chats-container .user-message .file-attachment[data-file-type="description"] span {
+    color: #1E88E5;
+}
+
+/* Planilhas (verde) */
+.chats-container .user-message .file-attachment[data-file-type="chart"] span {
+    color: #66BB6A;
+}
+
+/* Apresentações (laranja) */
+.chats-container .user-message .file-attachment[data-file-type="slideshow"] span {
+    color: #FFA726;
+}
+
+/* Código (roxo) */
+.chats-container .user-message .file-attachment[data-file-type="code"] span {
+    color: #AB47BC;
+}
+
+/* Zip (marrom) */
+.chats-container .user-message .file-attachment[data-file-type="zip"] span {
+    color: #8D6E63;
+}
+
+
+/* --- ESTILO PARA ANEXOS RECARREGADOS DO HISTÓRICO --- */
+.saved-attachment {
+    opacity: 0.75;
+    border: 1px dashed var(--secondary-hover-color);
+}
+
+/* ========================================= */
+/* --- ESTILOS PARA DELETAR CHATS --- */
+/* ========================================= */
+
+/* Organiza o título e o botão de deletar em cada item da lista */
+.chat-list-item-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.chat-title {
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Botão de lixeira na sidebar */
+.delete-chat-btn {
+    background: none;
+    border: none;
+    color: var(--subheading-color);
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 5px;
+    border-radius: 50%;
+    opacity: 0; /* Começa invisível */
+    transition: opacity 0.3s, color 0.3s, background-color 0.3s;
+}
+/* O botão aparece quando o mouse está sobre o item da lista */
+#chat-list li:hover .delete-chat-btn {
+    opacity: 1;
+}
+.delete-chat-btn:hover {
+    color: #E53935; /* Vermelho */
+    background-color: var(--secondary-hover-color);
+}
+
+/* Modal de Confirmação */
+.confirmation-modal {
+    position: fixed;
+    z-index: 2000; /* Acima de tudo, até do modal de imagem */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: none; /* Começa escondido */
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(5px);
+}
+.confirmation-modal.show {
+    display: flex;
+}
+.modal-content {
+    background-color: var(--secondary-color);
+    padding: 30px;
+    border-radius: 15px;
+    text-align: center;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 5px 25px rgba(0,0,0,0.3);
+    border: 1px solid var(--secondary-hover-color);
+    transform: scale(0.95);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+.confirmation-modal.show .modal-content {
+    transform: scale(1);
+    opacity: 1;
+}
+.modal-icon {
+    font-size: 3rem;
+    color: #FFA726; /* Amarelo/Laranja para alerta */
+}
+.modal-content h2 {
+    margin: 15px 0;
+    color: var(--text-color);
+}
+.modal-content p {
+    color: var(--subheading-color);
+    line-height: 1.6;
+}
+.modal-hint {
+    font-size: 0.8rem;
+    font-style: italic;
+    opacity: 0.7;
+    margin-top: 10px;
+}
+.modal-buttons {
+    margin-top: 25px;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+.modal-btn {
+    border: none;
+    padding: 12px 25px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.modal-btn.cancel {
+    background-color: var(--secondary-hover-color);
+    color: var(--text-color);
+}
+.modal-btn.cancel:hover {
+    background-color: #4a5677;
+}
+.modal-btn.confirm {
+    background-color: #E53935; /* Vermelho forte */
+    color: white;
+}
+.modal-btn.confirm:hover {
+    background-color: #c62828;
+}
