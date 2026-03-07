@@ -36,28 +36,37 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, style }) => {
       }}
     >
       {/* Avatar */}
-      <div
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: isUser ? '50%' : 12, // User = circle, AI = rounded rect
-          background: isUser 
-            ? colors.surfaceVariant 
-            : 'linear-gradient(to right, #1d7efd, #28a745)', // Gradiente Flavos IA
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          color: '#fff',
-          ...style?.avatar,
-        }}
-      >
-        {isUser ? (
+      {isUser ? (
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: '50%',
+            background: colors.surfaceVariant,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            color: '#fff',
+            ...style?.avatar,
+          }}
+        >
           <span className="material-symbols-rounded" style={{ fontSize: 20 }}>person</span>
-        ) : (
-          <span style={{ fontWeight: 'bold', fontSize: 16 }}>F</span>
-        )}
-      </div>
+        </div>
+      ) : (
+        <img
+          src="/Flavos_3.png"
+          alt="Flavos"
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            objectFit: 'contain',
+            flexShrink: 0,
+            ...style?.avatar,
+          }}
+        />
+      )}
 
       {/* Content */}
       <div

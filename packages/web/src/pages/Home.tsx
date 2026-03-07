@@ -53,24 +53,16 @@ const Home: React.FC = () => {
         }}
       >
         {/* Logo */}
-        <div
+        <img
+          src="/Flavos_3.png"
+          alt="Flavos Logo"
           style={{
             margin: '0 auto 30px',
-            width: 80,
-            height: 80,
-            borderRadius: 20,
-            background: 'linear-gradient(to right, #66ff4b, #ff5546)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 40,
-            fontWeight: 700,
-            color: '#101623',
-            boxShadow: '0 8px 32px rgba(102, 255, 75, 0.2)',
+            width: 120, // Aumentado para melhor visibilidade
+            height: 'auto',
+            display: 'block',
           }}
-        >
-          F
-        </div>
+        />
 
         {/* Headings */}
         <h1

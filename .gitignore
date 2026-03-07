@@ -1,11 +1,14 @@
 # Dependencies
 node_modules/
+.npm/
 
 # Build outputs
 dist/
 build/
 .next/
 .expo/
+*.apk
+*.ipa
 
 # Environment
 .env
@@ -14,6 +17,10 @@ build/
 
 # Turbo
 .turbo/
+
+# Assets (Garantir que as imagens do Flavos 3 sejam incluídas)
+!Banner_Flavos_3.png
+!Flavos_3.png
 
 # IDE
 .vscode/

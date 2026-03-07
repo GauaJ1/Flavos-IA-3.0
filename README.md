@@ -1,95 +1,85 @@
-# 🤖 Flavos IA 3.0
+# 🚀 Flavos IA 3.0 – **Phase 1 Concluída!** 🎉  
 
-> Chat inteligente movido a **Gemini 3.1-flash** — React (web) + React Native (mobile) em um monorepo Turborepo.
+![Banner](Banner_Flavos_3.png)
 
-## 📁 Estrutura
+## 🔄 **O que foi feito hoje (07/03/2026)**
 
-```
-packages/
-├── shared/     # Tipos, hooks, serviços, componentes compartilhados
-├── backend/    # Proxy Express → @google/genai (Gemini 3.1-flash)
-├── web/        # App web (Vite + React)
-└── mobile/     # App mobile (Expo + React Native)
-```
+Migração completa para arquitetura Monorepo e Redesign Minimalista:
 
-## 🚀 Como Rodar
+- ✅ **Arquitetura Monorepo**: Transição do PWA antigo para estrutura Turborepo com React (Web) e Expo (Mobile).
+- ✅ **Backend Proxy Seguro**: Implementação de servidor Express com suporte ao modelo `gemini-3.1-flash-lite-preview` via `@google/genai`, mantendo a API Key protegida.
+- ✅ **Redesign Minimalista 3.0**: Interface inspirada no Gemini com paleta de cores Azul ↔ Verde-Floresta e tipografia `Outfit`.
+- ✅ **Sidebar Inteligente**: Nova barra lateral para gerenciamento de chats (estrutural para futura integração Firebase).
 
-### 1. Pré-requisitos
-- **Node.js** ≥ 18
-- **npm** ≥ 10
-- **Chave da API do Gemini** — [obtenha aqui](https://aistudio.google.com/apikey)
+---
 
-### 2. Configurar Variáveis de Ambiente
-```bash
-# Na raiz do projeto
-cp .env.example .env
+## 🛠️ Roadmap de Desenvolvimento (Fases)
 
-# Edite o .env e preencha:
-GEMINI_API_KEY=sua_chave_aqui
-GEMINI_MODEL=gemini-3.1-flash
-PORT=3001
-```
+### 🔹 Fase 1: Fundação & Monorepo (ATUAL)
+- [x] Configuração centralizada (Turborepo + TS).
+- [x] Shared package com hooks, tipos e componentes base.
+- [x] Backend proxy para requisições seguras.
+- [x] UI/UX 3.0 Minimalista (Web).
 
-### 3. Instalar Dependências
-```bash
-npm install
-```
+### 🔸 Fase 2: Persistência & Mobile
+- [ ] Integração completa com **Firebase/Firestore**.
+- [ ] Renderização e polimento da versão **Mobile (Expo)**.
+- [ ] Histórico de mensagens real-time.
 
-### 4. Rodar Backend + Web (desenvolvimento)
-```bash
-# Terminal 1 — Backend proxy
-npm run dev:backend
+### 🔺 Fase 3: Mídia & Funcionalidades Avançadas
+- [ ] Upload de arquivos (PDF, imagens, áudio).
+- [ ] Streaming de mensagens.
+- [ ] Visualizadores de mídia nativos no chat.
 
-# Terminal 2 — Web app
-npm run dev:web
-```
+### 🏁 Fase 4: Autenticação & Produção
+- [ ] Firebase Auth (Login Social + Email).
+- [ ] Edição de mensagens.
+- [ ] Deploy v1.0 Production.
 
-- **Backend**: http://localhost:3001
-- **Web**: http://localhost:5173
-- **Health check**: http://localhost:3001/api/health
+---
 
-### 5. Testar o Chat
-1. Abra http://localhost:5173
-2. Clique em **"💬 Iniciar Chat"**
-3. Digite uma mensagem e envie
-4. A resposta do **Gemini 3.1-flash** aparecerá na conversa
+## 💬 Gerenciamento de Conversas (3.0)
+✅ **Sidebar de Navegação**  
+- Botão "Novo Chat" funcional com limpeza de estado.  
+- Lista de chats com estados de hover e transições suaves.  
 
-### 6. Rodar Mobile (opcional)
-```bash
-npm run dev:mobile
-# ou
-cd packages/mobile && npx expo start
-```
+✅ **Interface Minimalista "Flat"**  
+- Saudações dinâmicas e chips de sugestão de prompt.  
+- Bolhas de chat sutis para o usuário e texto direto para IA.  
 
-## 🧪 Testes
-```bash
-# Rodar todos os testes
-npm test
+✅ **Scroll Automático & Performance**  
+- Utiliza hooks customizados (`useChat`) para gerenciamento eficiente de mensagens.  
 
-# Testes do shared apenas
-cd packages/shared && npx vitest run
-```
+---
 
-## 🏗️ Scripts Disponíveis
+## 🗂️ **Status da Produção**
 
-| Script | Descrição |
-|---|---|
-| `npm run dev` | Inicia todos os pacotes em paralelo |
-| `npm run dev:web` | Apenas o web app |
-| `npm run dev:backend` | Apenas o backend proxy |
-| `npm run dev:mobile` | Apenas o mobile |
-| `npm run build` | Build de produção |
-| `npm test` | Roda todos os testes |
+| Etapa | Status | Descrição |
+|-------|--------|-----------|
+| 🔹 Fase 1 | ✅ Concluída | Fundação monorepo, backend e redesign minimalista |
+| 🔸 Fase 2 | ⏳ Em breve | Firebase, auth e suporte mobile completo |
+| 🔺 Fase 3 | 📋 Planejado | Funcionalidades de mídia, arquivos e IA avançada |
+| 🏁 Fase 4 | 📋 Planejado | Polimento final, edição e lançamento oficial |
 
-## 🔮 Próximos Passos (TODO)
+---
 
-- [ ] **Firebase Auth** — Login com email/Google (placeholders já preparados)
-- [ ] **Firebase Firestore** — Persistência de conversas
-- [ ] **Streaming** — Respostas do Gemini em tempo real
-- [ ] **Markdown rendering** — Formatação rica nas respostas
-- [ ] **Histórico de conversas** — Múltiplas sessões de chat
-- [ ] **PWA** — Service worker + manifest para instalação
+## 🧠 Sobre o Projeto  
 
-## 📝 Licença
+**Flavos IA 3.0** é a evolução definitiva da plataforma, focada em escala, segurança e uma experiência de usuário premium. Modular por design, cada parte da aplicação (Web, Mobile e Backend) compartilha a mesma inteligência e sistema de design.
 
-Projeto privado — Flavos IA © 2026
+---
+
+## 📦 Detalhes Técnicos
+
+- **Core:** React 19, Expo, Node.js
+- **IA:** Google Gemini 3.1-flash
+- **Styles:** Styled-components & CSS Variables
+- **State:** Zustand
+
+![Status](https://img.shields.io/badge/status-em%20produ%C3%A7%C3%A3o-orange)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-3.0%20v1.0-blueviolet)
+![Lançamento](https://img.shields.io/badge/release-07%2F03%2F2026-success)
+
+**📅 Última atualização:** `07/03/2026`  
+**🧑💻 Desenvolvedor:** Kauã Jorge  
+**🎨 Design:** Flavos IA Team
