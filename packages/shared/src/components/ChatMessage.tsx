@@ -71,7 +71,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, style }) => {
       {/* Content */}
       <div
         style={{
-          flex: 1,
+          flex: isUser ? '0 1 auto' : 1,
+          width: isUser ? 'fit-content' : undefined,
           maxWidth: isUser ? '75%' : '100%',
           background: isUser ? colors.surfaceVariant : 'transparent',
           padding: isUser ? '12px 16px' : '6px 0',

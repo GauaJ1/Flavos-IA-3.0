@@ -15,50 +15,64 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ onNewChat, style }) => {
   const { mode, toggleTheme, theme } = useTheme();
   const { logout } = useAuth();
-  const [isOpen, setIsOpen] = useState(false); // Mobile toggle
+  const [isOpen, setIsOpen] = useState(false);
   const colors = theme.colors;
 
   return (
     <>
-      {/* Botão de Toggle Mobile flutuante (quando sidebar fechada) */}
+      {/* Botão de Toggle flutuante */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         style={{
           position: 'fixed',
           top: 16,
-          left: 16,
+          left: isOpen ? 276 : 16,
           zIndex: 300,
-          background: 'none',
+          background: isOpen ? colors.surfaceVariant : 'none',
           border: 'none',
           color: colors.text,
           cursor: 'pointer',
           padding: 8,
-          display: 'block', // Na web pode-se usar media query pra sumir no desktop
+          borderRadius: 8,
+          transition: 'left 0.35s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
-        className="mobile-sidebar-toggle"
-        aria-label="Alternar Menu"
+        aria-label={isOpen ? 'Recolher Menu' : 'Abrir Menu'}
       >
-        <span className="material-symbols-rounded">menu</span>
+        <span
+          className="material-symbols-rounded"
+          style={{
+            transition: 'transform 0.35s ease',
+            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            display: 'block',
+          }}
+        >
+          {isOpen ? 'close' : 'menu'}
+        </span>
       </button>
 
-      {/* Overlay mobile */}
-      {isOpen && (
-        <div
-          onClick={() => setIsOpen(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            zIndex: 190,
-          }}
-          className="sidebar-overlay"
-        />
-      )}
+      {/* Overlay escuro (clicável para fechar) */}
+      <div
+        onClick={() => setIsOpen(false)}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.45)',
+          zIndex: 190,
+          opacity: isOpen ? 1 : 0,
+          pointerEvents: isOpen ? 'auto' : 'none',
+          transition: 'opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      />
 
       {/* Sidebar Container */}
       <div
-        className={`sidebar-container ${isOpen ? 'open' : ''}`}
         style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
           height: '100%',
           width: 260,
           background: colors.surfaceVariant,
@@ -66,28 +80,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNewChat, style }) => {
           padding: '20px 15px',
           display: 'flex',
           flexDirection: 'column',
-          position: 'relative',
-          transition: 'transform 0.3s ease',
           zIndex: 200,
+          transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
+          transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+          boxShadow: isOpen ? '4px 0 24px rgba(0,0,0,0.25)' : 'none',
           ...style,
         }}
       >
-        {/* Toggle interno (fechar/colapsar) */}
-        <button
-          onClick={() => setIsOpen(false)}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: colors.text,
-            cursor: 'pointer',
-            padding: 8,
-            alignSelf: 'flex-start',
-            marginBottom: 20,
-          }}
-          aria-label="Recolher Menu"
-        >
-          <span className="material-symbols-rounded">menu</span>
-        </button>
+        {/* Espaço para o botão de toggle não sobrepor conteúdo */}
+        <div style={{ height: 48, marginBottom: 8 }} />
 
         {/* Novo Chat */}
         <button
@@ -106,9 +107,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNewChat, style }) => {
             borderRadius: 12,
             cursor: 'pointer',
             fontWeight: 500,
-            transition: 'background 0.2s',
+            transition: 'background 0.2s, box-shadow 0.2s',
             marginBottom: 24,
             width: '100%',
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.boxShadow = `0 0 0 2px ${colors.primary ?? '#1d7efd'}33`;
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.boxShadow = 'none';
           }}
         >
           <span className="material-symbols-rounded">add</span>
@@ -155,14 +162,37 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNewChat, style }) => {
               onMouseOver={(e) => (e.currentTarget.style.background = colors.background)}
               onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
             >
-              <span className="material-symbols-rounded" style={{ fontSize: 18, color: colors.textSecondary }}>chat_bubble</span>
-              <span style={{ fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
+              <span
+                className="material-symbols-rounded"
+                style={{ fontSize: 18, color: colors.textSecondary }}
+              >
+                chat_bubble
+              </span>
+              <span
+                style={{
+                  fontSize: 14,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {title}
+              </span>
             </li>
           ))}
         </ul>
 
         {/* Bottom Actions */}
-        <div style={{ marginTop: 'auto', borderTop: `1px solid ${colors.border}`, paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div
+          style={{
+            marginTop: 'auto',
+            borderTop: `1px solid ${colors.border}`,
+            paddingTop: 16,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
           <button
             onClick={toggleTheme}
             style={{
@@ -177,6 +207,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNewChat, style }) => {
               cursor: 'pointer',
               width: '100%',
               textAlign: 'left',
+              transition: 'background 0.2s',
             }}
             onMouseOver={(e) => (e.currentTarget.style.background = colors.background)}
             onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
@@ -201,6 +232,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNewChat, style }) => {
               cursor: 'pointer',
               width: '100%',
               textAlign: 'left',
+              transition: 'background 0.2s',
             }}
             onMouseOver={(e) => (e.currentTarget.style.background = colors.background)}
             onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}

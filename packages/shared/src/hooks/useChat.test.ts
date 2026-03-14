@@ -10,7 +10,7 @@ vi.mock('../services/aiService', () => ({
   aiService: {
     generateResponse: vi.fn().mockResolvedValue({
       content: 'Resposta da IA mockada',
-      model: 'gemini-3.1-flash',
+      model: 'gemini-3.1-flash-lite-preview',
     }),
   },
 }));
