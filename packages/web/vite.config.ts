@@ -9,6 +9,10 @@ export default defineConfig({
       '@flavos/shared': path.resolve(__dirname, '../shared/src'),
     },
   },
+  define: {
+    'process.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || ''),
+    'process.env.EXPO_PUBLIC_API_URL': JSON.stringify(process.env.EXPO_PUBLIC_API_URL || ''),
+  },
   server: {
     port: 5173,
     proxy: {

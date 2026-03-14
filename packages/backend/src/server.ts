@@ -17,14 +17,18 @@ const PORT = process.env.PORT || 3001;
 // Middlewares
 // ===================================================
 
-// CORS — permite requisições do frontend (Vite dev server)
+// CORS — permite requisições do frontend e mobile na mesma rede
 app.use(
   cors({
-    origin: [
-      'http://localhost:5173', // Vite dev
-      'http://localhost:3000', // Produção local
-      'http://localhost:19006', // Expo web
-    ],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps)
+      // or from localhost/local IP addresses
+      if (!origin || origin.includes('localhost') || origin.startsWith('http://192.168.') || origin.startsWith('http://10.')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
@@ -57,11 +61,11 @@ app.get('/api/health', (_req, res) => {
 // Start Server
 // ===================================================
 
-app.listen(PORT, () => {
+app.listen(Number(PORT), '0.0.0.0', () => {
   console.log('');
   console.log('🚀 ═══════════════════════════════════════════');
   console.log(`   Flavos IA 3.0 — Backend Proxy`);
-  console.log(`   Servidor rodando em: http://localhost:${PORT}`);
+  console.log(`   Servidor rodando em: http://0.0.0.0:${PORT} (acessível na rede local)`);
   console.log(`   Modelo: ${process.env.GEMINI_MODEL || 'gemini-3.1-flash'}`);
   console.log(`   Health: http://localhost:${PORT}/api/health`);
   console.log('═══════════════════════════════════════════════');

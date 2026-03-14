@@ -7,9 +7,9 @@
  * Em produção, será substituída pela URL do deploy.
  */
 export const API_BASE_URL =
-  typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL
-    ? (import.meta as any).env.VITE_API_URL
-    : 'http://localhost:3001';
+  (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_API_URL) ||
+  (typeof process !== 'undefined' && process.env.VITE_API_URL) ||
+  'http://localhost:3001';
 
 /**
  * Endpoints da API.
@@ -21,7 +21,7 @@ export const API_ENDPOINTS = {
 /**
  * Nome do modelo Gemini utilizado (referência para o frontend).
  */
-export const GEMINI_MODEL = 'gemini-3.1-flash';
+export const GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
 
 /**
  * Configurações do app.

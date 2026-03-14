@@ -28,9 +28,11 @@ class AIService {
     messages: Pick<Message, 'role' | 'content'>[]
   ): Promise<ChatResponse> {
     const payload: ChatRequest = { messages };
+    const url = `${this.baseUrl}${API_ENDPOINTS.CHAT_GENERATE}`;
+    console.log(`[AIService] Sending request to: ${url}`);
 
     const response = await fetch(
-      `${this.baseUrl}${API_ENDPOINTS.CHAT_GENERATE}`,
+      url,
       {
         method: 'POST',
         headers: {
