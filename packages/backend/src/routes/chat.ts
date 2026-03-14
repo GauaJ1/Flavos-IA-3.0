@@ -61,7 +61,7 @@ router.post('/generate', async (req: Request, res: Response) => {
     // Última mensagem do usuário como o prompt atual
     const lastMessage = messages[messages.length - 1];
 
-    // Chama o Gemini 3.1-flash via @google/genai
+    // Chama o Gemini com Google Search Grounding habilitado
     const response = await genAI.models.generateContent({
       model: GEMINI_MODEL,
       contents: [
@@ -72,10 +72,8 @@ router.post('/generate', async (req: Request, res: Response) => {
         },
       ],
       config: {
-        maxOutputTokens: 2048,
-        temperature: 0.7,
-        topP: 0.9,
-        topK: 40,
+        tools: [{ googleSearch: {} }],  // Google Search Grounding
+        // Nota: temperature/topP/topK não são permitidos com grounding
       },
     });
 
@@ -84,11 +82,40 @@ router.post('/generate', async (req: Request, res: Response) => {
       response.candidates?.[0]?.content?.parts?.[0]?.text ||
       'Desculpe, não consegui gerar uma resposta.';
 
-    console.log(`✅ Resposta gerada com sucesso (${responseText.length} chars)`);
+    // Extrai as fontes do grounding (se disponíveis)
+    const groundingChunks =
+      response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+
+    const sources = groundingChunks
+      .filter((chunk: any) => chunk?.web?.uri)
+      .map((chunk: any) => ({
+        uri:   chunk.web.uri   as string,
+        title: chunk.web.title as string || chunk.web.uri as string,
+      }))
+      // Remove duplicatas por URI
+      .filter(
+        (src: any, idx: number, arr: any[]) =>
+          arr.findIndex((s: any) => s.uri === src.uri) === idx
+      );
+
+    // Extrai os suportes de grounding (segmentos de texto → fontes)
+    const rawSupports =
+      response.candidates?.[0]?.groundingMetadata?.groundingSupports ?? [];
+
+    const supports = rawSupports
+      .filter((s: any) => s?.segment?.text && s?.groundingChunkIndices?.length)
+      .map((s: any) => ({
+        text:         s.segment.text as string,
+        sourceIndices: s.groundingChunkIndices as number[],
+      }));
+
+    console.log(`✅ Resposta gerada (${responseText.length} chars, ${sources.length} fontes, ${supports.length} suportes)`);
 
     res.json({
       content: responseText,
       model: GEMINI_MODEL,
+      sources,
+      supports,
     });
   } catch (error: any) {
     console.error('❌ Erro ao gerar resposta:', error?.message || error);

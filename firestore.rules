@@ -1,0 +1,129 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================
+    // HELPER FUNCTIONS
+    // =========================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function isConversationOwner() {
+      return isAuthenticated() && resource.data.owner == request.auth.uid;
+    }
+
+    function isCreatingAsOwner() {
+      return isAuthenticated() && request.resource.data.owner == request.auth.uid;
+    }
+
+    function ownerIsUnchanged() {
+      return request.resource.data.owner == resource.data.owner;
+    }
+
+    // Verifica que o usuário autenticado é dono da conversa pai.
+    // Seguro porque a conversa é criada ANTES de qualquer entry.
+    function isParentConversationOwner(conversationId) {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/conversations/$(conversationId)).data.owner
+             == request.auth.uid;
+    }
+
+    function isValidConversation() {
+      let d = request.resource.data;
+      return d.keys().hasAll([
+            'owner', 'title', 'lastMsgPreview', 'lastMsgRole',
+            'lastMsgAt', 'createdAt', 'updatedAt', 'status', 'visibility'
+          ])
+        && d.owner == request.auth.uid
+        && d.title is string
+        && d.title.size() <= 200
+        && d.lastMsgPreview is string
+        && d.lastMsgPreview.size() <= 500
+        && d.lastMsgRole in ['user', 'assistant', 'system']
+        && d.status in ['active', 'archived', 'deleted']
+        && d.visibility in ['private'];
+    }
+
+    function isValidEntry() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['role', 'sender', 'body', 'createdAt'])
+        && d.role   in ['user', 'assistant', 'system']
+        && d.sender in ['user', 'ai', 'tool', 'agent', 'system']
+        && d.body is string
+        && d.body.size() > 0
+        && d.body.size() <= 32000;
+    }
+
+    // =========================================================
+    // ACCOUNTS: accounts/{uid}
+    // =========================================================
+    match /accounts/{uid} {
+      allow read: if isOwner(uid);
+
+      allow create: if isOwner(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.keys().hasAll(['uid', 'email', 'plan', 'createdAt']);
+
+      allow update: if isOwner(uid)
+        && request.resource.data.uid == resource.data.uid
+        && !request.resource.data.diff(resource.data).affectedKeys()
+             .hasAny(['uid', 'plan', 'createdAt']);
+
+      allow delete: if false;
+    }
+
+    // =========================================================
+    // CONVERSATIONS: conversations/{conversationId}
+    // =========================================================
+    match /conversations/{conversationId} {
+      allow read: if isConversationOwner();
+
+      allow create: if isCreatingAsOwner() && isValidConversation();
+
+      allow update: if isConversationOwner()
+        && ownerIsUnchanged()
+        && request.resource.data.diff(resource.data)
+             .affectedKeys()
+             .hasOnly([
+               'title', 'lastMsgPreview', 'lastMsgRole', 'lastMsgAt',
+               'updatedAt', 'status', 'visibility'
+             ]);
+
+      // Sem delete — use status: 'deleted'
+      allow delete: if false;
+
+      // =======================================================
+      // ENTRIES: conversations/{conversationId}/entries/{entryId}
+      //
+      // Segurança reforçada (Improvement 1):
+      //   A conversa é criada ANTES das entries, então get() funciona
+      //   corretamente sem quebrar writes atômicos.
+      //   Apenas o owner da conversa pode criar entries.
+      // =======================================================
+      match /entries/{entryId} {
+        allow read: if isParentConversationOwner(conversationId);
+
+        allow create: if isValidEntry()
+          && isParentConversationOwner(conversationId);
+
+        // Entries são imutáveis após criação
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+
+    // =========================================================
+    // DENY ALL — bloqueio padrão para coleções não listadas
+    // =========================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

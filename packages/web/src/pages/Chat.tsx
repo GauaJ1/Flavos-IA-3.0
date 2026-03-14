@@ -3,13 +3,15 @@
 // ===================================================
 
 import React, { useRef, useEffect } from 'react';
-import { useChat, useTheme, Sidebar, MessageList, ChatInput } from '@flavos/shared';
+import { useChat, useTheme, Sidebar, MessageList, ChatInput, useSidebar, useAuth } from '@flavos/shared';
 
 const Chat: React.FC = () => {
   const { messages, isLoading, error, sendMessage, clearMessages, clearError } = useChat();
   const { theme } = useTheme();
+  const { isPinned } = useSidebar();
+  const { user } = useAuth();
+  const SIDEBAR_W = 268;
 
-  // Se for o 1º render sem mensagens, mostrar a tela inicial de saudação "Olá"
   const showGreeting = messages.length === 0 && !isLoading;
 
   return (
@@ -22,10 +24,9 @@ const Chat: React.FC = () => {
         overflow: 'hidden',
       }}
     >
-      {/* Sidebar na esquerda */}
-      <Sidebar onNewChat={clearMessages} />
+      <Sidebar />
 
-      {/* Main Chat Area */}
+      {/* Main Chat Area — desloca para direita quando sidebar está fixada */}
       <main
         style={{
           flex: 1,
@@ -33,6 +34,8 @@ const Chat: React.FC = () => {
           flexDirection: 'column',
           position: 'relative',
           height: '100%',
+          marginLeft: isPinned ? SIDEBAR_W : 0,
+          transition: 'margin-left 0.28s cubic-bezier(0.4,0,0.2,1)',
         }}
       >
         {/* Error banner (absoluto no topo) */}
@@ -99,10 +102,11 @@ const Chat: React.FC = () => {
                   background: 'linear-gradient(to right, #66ff4b, #ff5546)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
                   marginBottom: 8,
                 }}
               >
-                Olá
+                Olá{user?.displayName ? `, ${user.displayName.split(' ').slice(0, 2).join(' ')}` : ''}!
               </h1>
               <h2
                 style={{

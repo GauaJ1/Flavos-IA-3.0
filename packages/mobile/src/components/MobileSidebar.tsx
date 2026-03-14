@@ -1,25 +1,19 @@
 // ===================================================
-// Flavos IA 3.0 — MobileSidebar Component
-// Animated slide-over drawer, mirroring web Sidebar
+// Flavos IA 3.0 — MobileSidebar (Firestore realtime)
 // ===================================================
 
 import React, { useRef, useEffect } from 'react';
 import {
-  View,
-  Pressable,
-  Animated,
-  StyleSheet,
-  ScrollView,
-  TouchableWithoutFeedback,
-  Dimensions,
+  View, Pressable, Animated, StyleSheet,
+  ScrollView, TouchableWithoutFeedback, Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
-import { useAuth } from '@flavos/shared';
+import { useAuth, useChat } from '@flavos/shared';
 import { Text } from './Text';
+import type { ConversationMeta } from '@flavos/shared';
 
 const SIDEBAR_WIDTH = 280;
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface MobileSidebarProps {
   isOpen: boolean;
@@ -27,98 +21,94 @@ interface MobileSidebarProps {
   onNewChat: () => void;
 }
 
-const MOCK_CHATS = ['Ideias de Receitas', 'Debugação de Código', 'Plano de Estudos'];
-
 const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewChat }) => {
   const { theme, mode, toggleTheme } = useTheme();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const {
+    conversations, currentConversationId,
+    loadConversations, loadConversation, unsubscribeAll,
+  } = useChat();
   const c = theme.colors;
 
-  const translateX = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
+  // Animações de entrada/saída
+  const translateX    = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
-  const sidebarScale = useRef(new Animated.Value(0.96)).current;
+  const sidebarScale  = useRef(new Animated.Value(0.96)).current;
+
+  // Inicia listener realtime ao logar
+  useEffect(() => {
+    if (user) loadConversations();
+  }, [user?.id]);
 
   useEffect(() => {
     if (isOpen) {
       Animated.parallel([
-        Animated.spring(translateX, {
-          toValue: 0,
-          damping: 22,
-          stiffness: 200,
-          mass: 0.9,
-          useNativeDriver: true,
-        }),
-        Animated.timing(overlayOpacity, {
-          toValue: 1,
-          duration: 220,
-          useNativeDriver: true,
-        }),
-        Animated.spring(sidebarScale, {
-          toValue: 1,
-          damping: 20,
-          stiffness: 180,
-          mass: 0.8,
-          useNativeDriver: true,
-        }),
+        Animated.spring(translateX,   { toValue: 0,              damping: 22,  stiffness: 200, mass: 0.9, useNativeDriver: true }),
+        Animated.timing(overlayOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+        Animated.spring(sidebarScale, { toValue: 1,              damping: 20,  stiffness: 180, mass: 0.8, useNativeDriver: true }),
       ]).start();
     } else {
       Animated.parallel([
-        Animated.timing(translateX, {
-          toValue: -SIDEBAR_WIDTH,
-          duration: 240,
-          useNativeDriver: true,
-        }),
-        Animated.timing(overlayOpacity, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(sidebarScale, {
-          toValue: 0.96,
-          duration: 220,
-          useNativeDriver: true,
-        }),
+        Animated.timing(translateX,    { toValue: -SIDEBAR_WIDTH, duration: 240, useNativeDriver: true }),
+        Animated.timing(overlayOpacity, { toValue: 0,              duration: 200, useNativeDriver: true }),
+        Animated.timing(sidebarScale,  { toValue: 0.96,            duration: 220, useNativeDriver: true }),
       ]).start();
     }
   }, [isOpen]);
 
-  const handleNewChat = () => {
-    onNewChat();
+  const handleNewChat = () => { onNewChat(); onClose(); };
+
+  const handleSelectConversation = async (id: string) => {
+    if (id !== currentConversationId) await loadConversation(id);
     onClose();
   };
 
   const handleLogout = async () => {
+    unsubscribeAll();
     onClose();
     await logout();
   };
 
   return (
     <>
-      {/* Dark overlay */}
-      <Animated.View
-        style={[styles.overlay, { opacity: overlayOpacity }]}
-        pointerEvents={isOpen ? 'auto' : 'none'}
-      >
+      {/* Overlay escuro */}
+      <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]} pointerEvents={isOpen ? 'auto' : 'none'}>
         <TouchableWithoutFeedback onPress={onClose} accessible={false}>
           <View style={StyleSheet.absoluteFill} />
         </TouchableWithoutFeedback>
       </Animated.View>
 
-      {/* Sidebar panel */}
+      {/* Painel */}
       <Animated.View
         style={[
           styles.sidebar,
-          {
-            backgroundColor: c.surfaceVariant,
-            borderRightColor: c.border,
-            transform: [{ translateX }, { scaleX: sidebarScale }, { scaleY: sidebarScale }],
-          },
+          { backgroundColor: c.surfaceVariant, borderRightColor: c.border,
+            transform: [{ translateX }, { scaleX: sidebarScale }, { scaleY: sidebarScale }] },
         ]}
       >
-        {/* Header spacer */}
-        <View style={styles.headerSpacer} />
+        {/* Cabeçalho com info do usuário */}
+        <View style={[styles.userRow, { borderBottomColor: c.border }]}>
+          {user?.photoURL ? (
+            <Image
+              source={{ uri: user.photoURL }}
+              style={styles.userAvatar}
+            />
+          ) : (
+            <View style={[styles.userAvatarPlaceholder, { backgroundColor: c.surfaceVariant, borderColor: c.border }]}>
+              <MaterialIcons name="person" size={20} color={c.textSecondary} />
+            </View>
+          )}
+          <View style={styles.userInfo}>
+            <Text weight="semibold" style={[styles.userName, { color: c.text }]} numberOfLines={1}>
+              {user?.displayName || 'Usuário'}
+            </Text>
+            <Text style={[styles.userEmail, { color: c.textSecondary }]} numberOfLines={1}>
+              {user?.email}
+            </Text>
+          </View>
+        </View>
 
-        {/* New Chat Button */}
+        {/* Novo Chat */}
         <Pressable
           onPress={handleNewChat}
           style={({ pressed }) => [
@@ -128,52 +118,68 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
           ]}
           accessibilityLabel="Iniciar novo chat"
         >
-          <MaterialIcons name="add" size={20} color={c.text} />
+          <MaterialIcons name="edit" size={18} color={c.text} />
           <Text weight="medium" style={[styles.newChatText, { color: c.text }]}>Novo Chat</Text>
         </Pressable>
 
-        {/* Section label */}
+        {/* Label */}
         <Text weight="semibold" style={[styles.sectionLabel, { color: c.textSecondary }]}>
-          SEUS CHATS (MOCK)
+          CONVERSAS
         </Text>
 
-        {/* Chat history list */}
+        {/* Lista realtime */}
         <ScrollView style={styles.chatList} showsVerticalScrollIndicator={false}>
-          {MOCK_CHATS.map((title, i) => (
-            <Pressable
-              key={i}
-              style={({ pressed }) => [
-                styles.chatItem,
-                pressed && { backgroundColor: c.background },
-              ]}
-              accessibilityLabel={title}
-            >
-              <MaterialIcons name="chat-bubble-outline" size={18} color={c.textSecondary} />
-              <Text
-                numberOfLines={1}
-                style={[styles.chatItemText, { color: c.text }]}
-              >
-                {title}
-              </Text>
-            </Pressable>
-          ))}
+          {conversations.length === 0 ? (
+            <Text style={[styles.emptyText, { color: c.textSecondary }]}>
+              Nenhuma conversa ainda.
+            </Text>
+          ) : (
+            conversations.map((conv: ConversationMeta) => {
+              const active = currentConversationId === conv.id;
+              return (
+                <Pressable
+                  key={conv.id}
+                  onPress={() => handleSelectConversation(conv.id)}
+                  style={({ pressed }) => [
+                    styles.chatItem,
+                    { borderLeftColor: active ? c.primary : 'transparent' },
+                    (pressed || active) && { backgroundColor: c.background },
+                  ]}
+                  accessibilityLabel={conv.title}
+                >
+                  <MaterialIcons
+                    name="chat-bubble-outline"
+                    size={16}
+                    color={active ? c.primary : c.textSecondary}
+                  />
+                  <View style={styles.chatItemContent}>
+                    <Text
+                      numberOfLines={1}
+                      weight={active ? 'semibold' : 'regular'}
+                      style={[styles.chatItemTitle, { color: active ? c.primary : c.text }]}
+                    >
+                      {conv.title}
+                    </Text>
+                    {conv.lastMsgPreview ? (
+                      <Text numberOfLines={1} style={[styles.chatItemPreview, { color: c.textSecondary }]}>
+                        {conv.lastMsgRole === 'assistant' ? '🤖 ' : ''}{conv.lastMsgPreview}
+                      </Text>
+                    ) : null}
+                  </View>
+                </Pressable>
+              );
+            })
+          )}
         </ScrollView>
 
-        {/* Bottom actions */}
+        {/* Ações do rodapé */}
         <View style={[styles.bottomActions, { borderTopColor: c.border }]}>
           <Pressable
             onPress={toggleTheme}
-            style={({ pressed }) => [
-              styles.actionBtn,
-              pressed && { backgroundColor: c.background, transform: [{ scale: 0.97 }] },
-            ]}
+            style={({ pressed }) => [styles.actionBtn, pressed && { backgroundColor: c.background }]}
             accessibilityLabel="Alternar tema"
           >
-            <MaterialIcons
-              name={mode === 'dark' ? 'light-mode' : 'dark-mode'}
-              size={22}
-              color={c.text}
-            />
+            <MaterialIcons name={mode === 'dark' ? 'light-mode' : 'dark-mode'} size={22} color={c.text} />
             <Text weight="medium" style={[styles.actionText, { color: c.text }]}>
               {mode === 'dark' ? 'Tema Claro' : 'Tema Escuro'}
             </Text>
@@ -181,10 +187,7 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
 
           <Pressable
             onPress={handleLogout}
-            style={({ pressed }) => [
-              styles.actionBtn,
-              pressed && { backgroundColor: c.background, transform: [{ scale: 0.97 }] },
-            ]}
+            style={({ pressed }) => [styles.actionBtn, pressed && { backgroundColor: c.background }]}
             accessibilityLabel="Sair da conta"
           >
             <MaterialIcons name="logout" size={22} color={c.error} />
@@ -197,79 +200,26 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    zIndex: 10,
-  },
-  sidebar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    width: SIDEBAR_WIDTH,
-    zIndex: 20,
-    borderRightWidth: 1,
-    paddingHorizontal: 14,
-    paddingBottom: 24,
-    flexDirection: 'column',
-  },
-  headerSpacer: {
-    height: 64,
-    marginBottom: 8,
-  },
-  newChatBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginBottom: 20,
-  },
-  newChatText: {
-    fontSize: 15,
-  },
-  sectionLabel: {
-    fontSize: 11,
-    letterSpacing: 1,
-    paddingLeft: 8,
-    marginBottom: 10,
-  },
-  chatList: {
-    flex: 1,
-  },
-  chatItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    marginBottom: 4,
-  },
-  chatItemText: {
-    fontSize: 14,
-    flex: 1,
-  },
-  bottomActions: {
-    marginTop: 'auto',
-    borderTopWidth: 1,
-    paddingTop: 14,
-    gap: 4,
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-  },
-  actionText: {
-    fontSize: 15,
-  },
+  overlay:  { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10 },
+  sidebar:  { position: 'absolute', top: 0, left: 0, bottom: 0, width: SIDEBAR_WIDTH, zIndex: 20, borderRightWidth: 1, paddingHorizontal: 14, paddingBottom: 24, flexDirection: 'column' },
+  userRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16, paddingTop: 52, borderBottomWidth: 1, marginBottom: 12 },
+  userAvatar: { width: 36, height: 36, borderRadius: 18 },
+  userAvatarPlaceholder: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  userInfo: { flex: 1 },
+  userName:  { fontSize: 14 },
+  userEmail: { fontSize: 11, marginTop: 1 },
+  newChatBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 20, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 16 },
+  newChatText: { fontSize: 14 },
+  sectionLabel: { fontSize: 10, letterSpacing: 1.2, paddingLeft: 8, marginBottom: 8 },
+  chatList: { flex: 1 },
+  emptyText: { fontSize: 13, textAlign: 'center', marginTop: 20 },
+  chatItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 9, paddingHorizontal: 10, borderRadius: 12, marginBottom: 2, borderLeftWidth: 3 },
+  chatItemContent: { flex: 1 },
+  chatItemTitle:   { fontSize: 13 },
+  chatItemPreview: { fontSize: 11, marginTop: 2 },
+  bottomActions: { marginTop: 'auto', borderTopWidth: 1, paddingTop: 14, gap: 4 },
+  actionBtn:  { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12 },
+  actionText: { fontSize: 15 },
 });
 
 export default MobileSidebar;

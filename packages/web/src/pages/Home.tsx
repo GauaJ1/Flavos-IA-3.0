@@ -65,7 +65,7 @@ const InputField: React.FC<InputFieldProps> = ({ type, placeholder, value, onCha
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
-  const { login, isLoading } = useAuth();
+  const { login, register, loginWithGoogle, isLoading, error } = useAuth();
   const { mode } = useTheme();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -78,10 +78,24 @@ const Home: React.FC = () => {
     e.preventDefault();
     if (isLoading) return;
     try {
-      await login(email, password);
+      if (isLogin) {
+        await login(email, password);
+      } else {
+        await register(email, password, name);
+      }
       navigate('/chat');
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Erro já salvo na store pelo useAuth
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    if (isLoading) return;
+    try {
+      await loginWithGoogle();
+      navigate('/chat');
+    } catch {
+      // Erro já salvo na store pelo useAuth
     }
   };
 
@@ -181,7 +195,7 @@ const Home: React.FC = () => {
 
         {/* Google Button */}
         <button
-          onClick={() => navigate('/chat')}
+          onClick={handleGoogleLogin}
           disabled={isLoading}
           onMouseEnter={() => setGoogleHover(true)}
           onMouseLeave={() => setGoogleHover(false)}

@@ -1,6 +1,7 @@
 // ===================================================
 // Flavos IA 3.0 — App.tsx (Mobile)
 // React Navigation Stack: Login → Chat
+// Firebase inicializado aqui (equivalente ao web main.tsx)
 // ===================================================
 
 import React from 'react';
@@ -18,10 +19,34 @@ import {
   Outfit_700Bold,
 } from '@expo-google-fonts/outfit';
 import { useTheme } from './theme';
-import { aiService } from '@flavos/shared';
+import { aiService, initFirebase, useAuth } from '@flavos/shared';
+
+// Firebase SDK — inicializado ANTES de qualquer componente usar useAuth/useChat
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+
+const firebaseConfig = {
+  apiKey:            process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain:        process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId:         process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket:     process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId:             process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+};
+
+// Singleton — evita re-inicialização em hot-reload do Expo
+const firebaseApp  = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+const firebaseAuth = getAuth(firebaseApp);
+// NOTA: Firebase JS SDK v11+ removeu getReactNativePersistence.
+// Sessões funcionam mas não persistem entre restarts (aceitável para Expo Go).
+const firebaseDb   = getFirestore(firebaseApp);
+
+// Registra as instâncias no shared package (mesmo padrão do web)
+initFirebase(firebaseAuth, firebaseDb);
 
 import LoginScreen from './screens/LoginScreen';
-import ChatScreen from './screens/ChatScreen';
+import ChatScreen  from './screens/ChatScreen';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -32,41 +57,33 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function AppNavigator() {
   const { theme, mode } = useTheme();
+  const { isAuthenticated, isLoading } = useAuth();
   const c = theme.colors;
 
   const flashOpacity = React.useRef(new Animated.Value(0)).current;
   const isFirstRender = React.useRef(true);
 
   React.useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-    // Crossfade: fade in the new background color, then fade out
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
     Animated.sequence([
-      Animated.timing(flashOpacity, {
-        toValue: 1,
-        duration: 120,
-        useNativeDriver: true,
-      }),
-      Animated.timing(flashOpacity, {
-        toValue: 0,
-        duration: 280,
-        useNativeDriver: true,
-      }),
+      Animated.timing(flashOpacity, { toValue: 1, duration: 120, useNativeDriver: true }),
+      Animated.timing(flashOpacity, { toValue: 0, duration: 280, useNativeDriver: true }),
     ]).start();
   }, [mode]);
+
+  // Aguarda Firebase verificar sessão antes de renderizar
+  if (isLoading) return null;
 
   return (
     <>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} backgroundColor={c.background} />
       <NavigationContainer>
         <Stack.Navigator
-          initialRouteName="Login"
+          initialRouteName={isAuthenticated ? 'Chat' : 'Login'}
           screenOptions={{ headerShown: false, animation: 'fade' }}
         >
           <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Chat" component={ChatScreen} />
+          <Stack.Screen name="Chat"  component={ChatScreen}  />
         </Stack.Navigator>
       </NavigationContainer>
 
@@ -93,16 +110,11 @@ export default function App() {
     Outfit_700Bold,
   });
 
-  // Configura a URL do backend explicitamente quando o App monta.
-  // Isso sobrepõe qualquer problema do Expo não ter carregado o .env corretamente.
   React.useEffect(() => {
-    aiService.setBaseUrl('http://192.168.0.203:3001');
-    console.log('[MobileApp] Backend URL configurada para: http://192.168.0.203:3001');
+    aiService.setBaseUrl(process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001');
   }, []);
 
-  if (!fontsLoaded) {
-    return null; // O Expo cuida da SplashScreen nativamente enquanto carrega
-  }
+  if (!fontsLoaded) return null;
 
   return (
     <SafeAreaProvider>

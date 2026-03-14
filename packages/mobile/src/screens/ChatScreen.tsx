@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useChat } from '@flavos/shared';
+import { useChat, useAuth } from '@flavos/shared';
 import { useTheme } from '../theme';
 
 import MobileHeader from '../components/MobileHeader';
@@ -30,6 +30,7 @@ const SUGGESTIONS = [
 
 const ChatScreen: React.FC = () => {
   const { messages, isLoading, error, sendMessage, clearMessages, clearError } = useChat();
+  const { user } = useAuth();
   const { theme } = useTheme();
   const c = theme.colors;
 
@@ -77,7 +78,9 @@ const ChatScreen: React.FC = () => {
               keyboardShouldPersistTaps="handled"
             >
               {/* Greeting Text */}
-              <Text weight="bold" style={styles.greetingHello}>Olá</Text>
+              <Text weight="bold" style={styles.greetingHello}>
+                {`Olá${user?.displayName ? ', ' + user.displayName.split(' ').slice(0, 2).join(' ') : ''}!`}
+              </Text>
               <Text weight="regular" style={[styles.greetingSubtitle, { color: c.textSecondary }]}>
                 Como posso te ajudar?
               </Text>

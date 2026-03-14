@@ -9,9 +9,11 @@ export * from './types';
 export { useChat } from './hooks/useChat';
 export { useAuth } from './hooks/useAuth';
 export { useTheme } from './hooks/useTheme';
+export { useSidebar } from './hooks/useSidebar';
 
 // Services
 export { aiService } from './services/aiService';
+export { initFirebase } from './config/firebase';
 
 // Components
 export { ChatMessage } from './components/ChatMessage';

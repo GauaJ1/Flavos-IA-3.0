@@ -3,10 +3,11 @@
 // ===================================================
 
 import React from 'react';
-import { View, Image, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet, Pressable, Linking } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { Message } from '@flavos/shared';
+import { useAuth } from '@flavos/shared';
 import { useTheme } from '../theme';
 import { Text } from './Text';
 
@@ -17,6 +18,7 @@ interface MobileChatMessageProps {
 const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message }) => {
   const isUser = message.role === 'user';
   const { theme } = useTheme();
+  const { user } = useAuth();
   const c = theme.colors;
 
   // Markdown styles specifically crafted for the Outfit font + our dark/light palettes
@@ -96,13 +98,48 @@ const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message }) => {
             {message.content}
           </Markdown>
         )}
+
+        {/* ── Fontes do Google Search Grounding ── */}
+        {!isUser && message.sources && message.sources.length > 0 && (
+          <View style={styles.sourcesContainer}>
+            <View style={styles.sourcesHeader}>
+              <MaterialIcons name="search" size={13} color={c.textSecondary} />
+              <Text style={[styles.sourcesLabel, { color: c.textSecondary }]}>Fontes</Text>
+            </View>
+            <View style={styles.sourcesChips}>
+              {message.sources.slice(0, 3).map((src, i) => (
+                <Pressable
+                  key={i}
+                  onPress={() => Linking.openURL(src.uri)}
+                  style={({ pressed }) => [
+                    styles.sourceChip,
+                    { backgroundColor: c.surfaceVariant, borderColor: c.border, opacity: pressed ? 0.7 : 1 },
+                  ]}
+                >
+                  <MaterialIcons name="open-in-new" size={11} color={c.primary} />
+                  <Text numberOfLines={1} style={[styles.sourceChipText, { color: c.primary }]}>
+                    {src.title.length > 40 ? src.title.slice(0, 37) + '…' : src.title}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
       </View>
 
-      {/* User Avatar */}
+      {/* Avatar do Usuário */}
       {isUser && (
-        <View style={[styles.avatar, styles.userAvatarCircle, { backgroundColor: c.surfaceVariant }]}>
-          <MaterialIcons name="person" size={22} color={c.textSecondary} />
-        </View>
+        user?.photoURL ? (
+          <Image
+            source={{ uri: user.photoURL }}
+            style={[styles.avatar, styles.userAvatarImg]}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[styles.avatar, styles.userAvatarCircle, { backgroundColor: c.surfaceVariant }]}>
+            <MaterialIcons name="person" size={22} color={c.textSecondary} />
+          </View>
+        )
       )}
     </View>
   );
@@ -133,6 +170,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  userAvatarImg: {
+    borderRadius: 18,
+  },
   bubble: {
     maxWidth: '78%',
     paddingVertical: 10,
@@ -146,6 +186,12 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     paddingLeft: 0,
   },
+  sourcesContainer: { marginTop: 8, paddingTop: 8, borderTopWidth: 1 },
+  sourcesHeader: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, marginBottom: 6 },
+  sourcesLabel: { fontSize: 11, fontWeight: '600' as const, letterSpacing: 0.5 },
+  sourcesChips: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 6 },
+  sourceChip: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 12, borderWidth: 1 },
+  sourceChipText: { fontSize: 11, flex: 1 },
   text: {
     fontSize: 15,
     lineHeight: 22,
