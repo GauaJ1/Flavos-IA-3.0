@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { Animated, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -33,6 +34,29 @@ function AppNavigator() {
   const { theme, mode } = useTheme();
   const c = theme.colors;
 
+  const flashOpacity = React.useRef(new Animated.Value(0)).current;
+  const isFirstRender = React.useRef(true);
+
+  React.useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    // Crossfade: fade in the new background color, then fade out
+    Animated.sequence([
+      Animated.timing(flashOpacity, {
+        toValue: 1,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+      Animated.timing(flashOpacity, {
+        toValue: 0,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [mode]);
+
   return (
     <>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} backgroundColor={c.background} />
@@ -45,6 +69,17 @@ function AppNavigator() {
           <Stack.Screen name="Chat" component={ChatScreen} />
         </Stack.Navigator>
       </NavigationContainer>
+
+      {/* Theme crossfade flash overlay */}
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: c.background,
+          opacity: flashOpacity,
+          zIndex: 9999,
+        }}
+      />
     </>
   );
 }

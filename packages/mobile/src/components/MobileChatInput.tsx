@@ -18,12 +18,14 @@ interface MobileChatInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  bottomInset?: number;
 }
 
 const MobileChatInput: React.FC<MobileChatInputProps> = ({
   onSend,
   disabled = false,
   placeholder = 'Pergunte qualquer coisa',
+  bottomInset = 0,
 }) => {
   const [text, setText] = useState('');
   const { theme } = useTheme();
@@ -39,7 +41,7 @@ const MobileChatInput: React.FC<MobileChatInputProps> = ({
   };
 
   return (
-    <View style={[styles.wrapper, { backgroundColor: c.background }]}>
+    <View style={[styles.wrapper, { backgroundColor: c.background, paddingBottom: Math.max(bottomInset, Platform.OS === 'ios' ? 8 : 12) }]}>
       {/* Pill container */}
       <View style={[styles.pill, { backgroundColor: c.inputBackground }]}>
         <TextInput
@@ -101,7 +103,7 @@ const styles = StyleSheet.create({
   wrapper: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 8 : 12,
+    // paddingBottom is injected dynamically via bottomInset prop
   },
   pill: {
     flexDirection: 'row',

@@ -13,6 +13,7 @@
     },
     "android": {
       "package": "com.flavos.ia",
+      "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "backgroundColor": "#0a0a0f"
       }

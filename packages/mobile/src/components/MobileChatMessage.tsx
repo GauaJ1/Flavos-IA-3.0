@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { View, Image, StyleSheet } from 'react-native';
+import Markdown from 'react-native-markdown-display';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { Message } from '@flavos/shared';
 import { useTheme } from '../theme';
@@ -17,6 +18,49 @@ const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message }) => {
   const isUser = message.role === 'user';
   const { theme } = useTheme();
   const c = theme.colors;
+
+  // Markdown styles specifically crafted for the Outfit font + our dark/light palettes
+  const mdStyles = {
+    body: { color: c.aiBubbleText, fontFamily: 'Outfit_400Regular', fontSize: 15, lineHeight: 23 },
+    heading1: { color: c.text, fontFamily: 'Outfit_700Bold', fontSize: 20, marginTop: 8, marginBottom: 4 },
+    heading2: { color: c.text, fontFamily: 'Outfit_600SemiBold', fontSize: 17, marginTop: 6, marginBottom: 3 },
+    heading3: { color: c.text, fontFamily: 'Outfit_600SemiBold', fontSize: 15, marginTop: 4, marginBottom: 2 },
+    strong: { fontFamily: 'Outfit_700Bold', color: c.text },
+    em: { fontFamily: 'Outfit_300Light', color: c.text, fontStyle: 'italic' as const },
+    bullet_list: { marginVertical: 4 },
+    ordered_list: { marginVertical: 4 },
+    bullet_list_icon: { color: c.primary, marginTop: 4, marginRight: 6 },
+    list_item: { marginVertical: 2 },
+    code_inline: {
+      fontFamily: 'monospace',
+      backgroundColor: c.surfaceVariant,
+      color: c.primary,
+      borderRadius: 4,
+      paddingHorizontal: 4,
+      paddingVertical: 1,
+      fontSize: 13,
+    },
+    fence: {
+      backgroundColor: c.surfaceVariant,
+      borderRadius: 10,
+      padding: 12,
+      marginVertical: 6,
+    },
+    code_block: {
+      fontFamily: 'monospace',
+      fontSize: 13,
+      color: c.text,
+    },
+    blockquote: {
+      backgroundColor: 'transparent',
+      borderLeftColor: c.primary,
+      borderLeftWidth: 3,
+      paddingLeft: 10,
+      marginVertical: 4,
+    },
+    blockquote_text: { color: c.textSecondary, fontStyle: 'italic' as const },
+    paragraph: { marginTop: 2, marginBottom: 2 },
+  };
 
   return (
     <View style={[styles.row, isUser ? styles.rowUser : styles.rowAI]}>
@@ -38,14 +82,20 @@ const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message }) => {
             : [styles.bubbleAI, { backgroundColor: 'transparent' }],
         ]}
       >
-        <Text
-          style={[
-            styles.text,
-            { color: isUser ? c.userBubbleText : c.aiBubbleText },
-          ]}
-        >
-          {message.content}
-        </Text>
+        {isUser ? (
+          <Text
+            style={[
+              styles.text,
+              { color: c.userBubbleText },
+            ]}
+          >
+            {message.content}
+          </Text>
+        ) : (
+          <Markdown style={mdStyles}>
+            {message.content}
+          </Markdown>
+        )}
       </View>
 
       {/* User Avatar */}
@@ -61,7 +111,7 @@ const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message }) => {
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     paddingHorizontal: 16,
     paddingVertical: 8,
     gap: 10,

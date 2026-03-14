@@ -2,7 +2,7 @@
 // Flavos IA 3.0 — ChatInput Component (Minimalista)
 // ===================================================
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { APP_CONFIG } from '../utils/constants';
 
 interface ChatInputProps {
@@ -24,12 +24,20 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   style,
 }) => {
   const [text, setText] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const resetHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '24px';
+    }
+  };
 
   const handleSend = () => {
     const trimmed = text.trim();
     if (!trimmed || disabled) return;
     onSend(trimmed);
     setText('');
+    resetHeight();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -40,6 +48,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   const isValid = text.trim().length > 0 && !disabled;
+
+  // Auto-resize the textarea as content grows
+  const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
+    const el = e.currentTarget;
+    el.style.height = '24px'; // reset first
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setText(e.target.value);
+  };
 
   return (
     <div
@@ -59,30 +78,41 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           display: 'flex',
           alignItems: 'center',
           width: '100%',
-          height: 56,
+          minHeight: 56,
           background: 'var(--input-bg)',
-          borderRadius: 130, // Pílula como no CSS original
-          padding: '0 8px 0 24px',
+          borderRadius: 28,
+          padding: '6px 8px 6px 24px',
+          boxSizing: 'border-box',
+          gap: 4,
           ...style?.wrapper,
         }}
       >
-        <input
-          type="text"
+        <textarea
+          ref={textareaRef}
+          rows={1}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={handleChange}
+          onInput={handleInput}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
           maxLength={APP_CONFIG.MAX_MESSAGE_LENGTH}
           style={{
             flex: 1,
-            height: '100%',
+            minHeight: 24,
+            maxHeight: 200,
             background: 'none',
             border: 'none',
             color: 'var(--text)',
             fontSize: '1rem',
             outline: 'none',
             fontFamily: 'inherit',
+            resize: 'none',
+            lineHeight: '24px',
+            padding: '10px 0',
+            margin: 0,
+            overflowY: 'auto',
+            display: 'block',
             ...style?.input,
           }}
         />

@@ -8,11 +8,10 @@ import {
   View,
   Pressable,
   ScrollView,
-  KeyboardAvoidingView,
   Platform,
   StyleSheet,
-  SafeAreaView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useChat } from '@flavos/shared';
 import { useTheme } from '../theme';
@@ -35,19 +34,15 @@ const ChatScreen: React.FC = () => {
   const c = theme.colors;
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const showGreeting = messages.length === 0 && !isLoading;
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: c.background }]}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
-        <View style={[styles.container, { backgroundColor: c.background }]}>
-          {/* Header */}
-          <MobileHeader onMenuPress={() => setSidebarOpen(true)} />
+    <View style={[styles.safeArea, { backgroundColor: c.background, paddingTop: insets.top }]}>
+      <View style={[styles.container, { backgroundColor: c.background }]}>
+        {/* Header */}
+        <MobileHeader onMenuPress={() => setSidebarOpen(true)} />
 
           {/* Error Banner */}
           {!!error && (
@@ -117,17 +112,16 @@ const ChatScreen: React.FC = () => {
           )}
 
           {/* Input */}
-          <MobileChatInput onSend={sendMessage} disabled={isLoading} />
+          <MobileChatInput onSend={sendMessage} disabled={isLoading} bottomInset={insets.bottom} />
 
-          {/* Sidebar Overlay + Drawer */}
-          <MobileSidebar
-            isOpen={sidebarOpen}
-            onClose={() => setSidebarOpen(false)}
-            onNewChat={clearMessages}
-          />
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        {/* Sidebar Overlay + Drawer */}
+        <MobileSidebar
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          onNewChat={clearMessages}
+        />
+      </View>
+    </View>
   );
 };
 
@@ -147,9 +141,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 16,
+    borderWidth: 1,
   },
   errorContent: {
     flexDirection: 'row',
@@ -191,9 +188,9 @@ const styles = StyleSheet.create({
   },
   sugCard: {
     width: 200,
-    padding: 18,
-    borderRadius: 14,
-    minHeight: 130,
+    padding: 20,
+    borderRadius: 24,
+    minHeight: 140,
     justifyContent: 'space-between',
   },
   sugText: {

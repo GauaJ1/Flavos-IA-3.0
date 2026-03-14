@@ -11,10 +11,12 @@ import {
   Image,
   StyleSheet,
   ScrollView,
-  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import MaskedView from '@react-native-masked-view/masked-view';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
@@ -32,6 +34,7 @@ const LoginScreen: React.FC = () => {
   const { login, isLoading } = useAuth();
   const { theme } = useTheme();
   const c = theme.colors;
+  const insets = useSafeAreaInsets();
 
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -71,10 +74,7 @@ const LoginScreen: React.FC = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.flex, { backgroundColor: c.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <View style={[styles.flex, { backgroundColor: c.background, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
@@ -98,13 +98,24 @@ const LoginScreen: React.FC = () => {
             resizeMode="contain"
           />
 
-          {/* Gradient-text headline simulation using 2-color text */}
-          <Text weight="bold" style={styles.headlineGreen}>
-            {isLogin ? 'Bem-vindo' : 'Crie sua'}
-          </Text>
-          <Text weight="bold" style={styles.headlineRed}>
-            {isLogin ? ' de volta!' : ' conta'}
-          </Text>
+          {/* Gradient-style headline */}
+          <MaskedView
+            style={styles.maskedContainer}
+            maskElement={
+              <View style={styles.maskWrapper}>
+                <Text weight="bold" style={styles.headlineMask}>
+                  {isLogin ? 'Bem-vindo de volta!' : 'Crie sua conta'}
+                </Text>
+              </View>
+            }
+          >
+            <LinearGradient
+              colors={['#66ff4b', '#ff5546']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.gradientFill}
+            />
+          </MaskedView>
 
           <Text style={[styles.subtitle, { color: c.textSecondary }]}>
             {isLogin ? 'Faça login para continuar' : 'É rápido e fácil'}
@@ -174,7 +185,11 @@ const LoginScreen: React.FC = () => {
             ]}
             accessibilityLabel={isLogin ? 'Entrar com o Google' : 'Cadastrar com o Google'}
           >
-            <MaterialCommunityIcons name="google" size={24} color="#4285F4" />
+            <Image
+              source={{ uri: 'https://www.gstatic.com/marketing-cms/assets/images/d5/dc/cfe9ce8b4425b410b49b7f2dd3f3/g.webp=s96-fcrop64=1,00000000ffffffff-rw' }}
+              style={styles.googleIcon}
+              resizeMode="contain"
+            />
             <Text weight="medium" style={[styles.googleText, { color: c.text }]}>
               {isLogin ? 'Entrar com o Google' : 'Cadastrar com o Google'}
             </Text>
@@ -198,7 +213,7 @@ const LoginScreen: React.FC = () => {
           </Text>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -215,7 +230,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
     padding: 32,
-    borderRadius: 20,
+    borderRadius: 28,
     borderWidth: 1,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
@@ -228,18 +243,24 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 20,
   },
-  headlineGreen: {
-    fontSize: 26,
+  maskedContainer: {
+    height: 44, // Fixed height to fit the headline exactly
+    alignSelf: 'stretch',
+    marginBottom: 6,
+  },
+  maskWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headlineMask: {
+    fontSize: 28,
     textAlign: 'center',
-    color: '#66ff4b',
+    color: 'black',
     lineHeight: 34,
   },
-  headlineRed: {
-    fontSize: 26,
-    textAlign: 'center',
-    color: '#ff5546',
-    lineHeight: 34,
-    marginBottom: 6,
+  gradientFill: {
+    flex: 1,
   },
   subtitle: {
     fontSize: 15,
@@ -252,11 +273,11 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 54,
+    height: 56,
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    gap: 10,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    gap: 12,
   },
   input: {
     flex: 1,
@@ -264,11 +285,11 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   btn: {
-    height: 54,
-    borderRadius: 12,
+    height: 56,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 6,
+    marginTop: 8,
   },
   btnText: {
     color: '#fff',
@@ -288,13 +309,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   googleBtn: {
-    height: 54,
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
+  },
+  googleIcon: {
+    width: 24,
+    height: 24,
   },
   googleText: {
     fontSize: 15,

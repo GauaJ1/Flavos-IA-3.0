@@ -36,20 +36,50 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
 
   const translateX = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const sidebarScale = useRef(new Animated.Value(0.96)).current;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(translateX, {
-        toValue: isOpen ? 0 : -SIDEBAR_WIDTH,
-        duration: 320,
-        useNativeDriver: true,
-      }),
-      Animated.timing(overlayOpacity, {
-        toValue: isOpen ? 1 : 0,
-        duration: 320,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    if (isOpen) {
+      Animated.parallel([
+        Animated.spring(translateX, {
+          toValue: 0,
+          damping: 22,
+          stiffness: 200,
+          mass: 0.9,
+          useNativeDriver: true,
+        }),
+        Animated.timing(overlayOpacity, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+        Animated.spring(sidebarScale, {
+          toValue: 1,
+          damping: 20,
+          stiffness: 180,
+          mass: 0.8,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(translateX, {
+          toValue: -SIDEBAR_WIDTH,
+          duration: 240,
+          useNativeDriver: true,
+        }),
+        Animated.timing(overlayOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(sidebarScale, {
+          toValue: 0.96,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
   }, [isOpen]);
 
   const handleNewChat = () => {
@@ -81,7 +111,7 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
           {
             backgroundColor: c.surfaceVariant,
             borderRightColor: c.border,
-            transform: [{ translateX }],
+            transform: [{ translateX }, { scaleX: sidebarScale }, { scaleY: sidebarScale }],
           },
         ]}
       >
@@ -94,7 +124,7 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
           style={({ pressed }) => [
             styles.newChatBtn,
             { backgroundColor: c.background, borderColor: c.border },
-            pressed && { opacity: 0.75 },
+            pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] },
           ]}
           accessibilityLabel="Iniciar novo chat"
         >
@@ -135,7 +165,7 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
             onPress={toggleTheme}
             style={({ pressed }) => [
               styles.actionBtn,
-              pressed && { backgroundColor: c.background },
+              pressed && { backgroundColor: c.background, transform: [{ scale: 0.97 }] },
             ]}
             accessibilityLabel="Alternar tema"
           >
@@ -153,7 +183,7 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
             onPress={handleLogout}
             style={({ pressed }) => [
               styles.actionBtn,
-              pressed && { backgroundColor: c.background },
+              pressed && { backgroundColor: c.background, transform: [{ scale: 0.97 }] },
             ]}
             accessibilityLabel="Sair da conta"
           >
@@ -193,7 +223,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 20,
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginBottom: 20,
@@ -216,7 +246,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: 4,
   },
   chatItemText: {
@@ -235,7 +265,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 12,
   },
   actionText: {
     fontSize: 15,
