@@ -2,14 +2,69 @@
 // Flavos IA 3.0 — MobileChatMessage Component
 // ===================================================
 
-import React from 'react';
-import { View, Image, StyleSheet, Pressable, Linking } from 'react-native';
+import React, { useState } from 'react';
+import { View, Image, StyleSheet, Pressable, Linking, ScrollView } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import type { Message } from '@flavos/shared';
 import { useAuth } from '@flavos/shared';
+import { dracula, highlightCode, getFileExtension } from '@flavos/shared/src/utils/syntaxHighlighter';
 import { useTheme } from '../theme';
 import { Text } from './Text';
+
+// Renderizador custom nativo para Blocos de Código (Mobile)
+const MobileCodeBlock = ({ node, c }: any) => {
+  const [copied, setCopied] = useState(false);
+  const language = node.sourceInfo || 'code';
+  const rawCode = String(node.content || '').replace(/\n$/, '');
+
+  const handleCopy = async () => {
+    await Clipboard.setStringAsync(rawCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownload = async () => {
+    try {
+      // @ts-ignore: Tipagem do expo-file-system falhando no monorepo
+      const fs = FileSystem as any;
+      const ext = getFileExtension(language);
+      const uri = (fs.documentDirectory || fs.cacheDirectory || '') + `codigo-${language || 'snippet'}.${ext}`;
+      await FileSystem.writeAsStringAsync(uri, rawCode);
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri);
+      }
+    } catch (e) {
+      console.log('Error sharing/downloading:', e);
+    }
+  };
+
+  return (
+    <View key={node.key} style={{ backgroundColor: dracula.bg, borderRadius: 10, marginVertical: 8, overflow: 'hidden', borderWidth: 1, borderColor: c.border }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: dracula.header, paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border }}>
+        <Text style={{ fontSize: 12, color: dracula.fg, fontWeight: '600' }}>{language}</Text>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <Pressable onPress={handleCopy} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: 0.8 }}>
+            <MaterialIcons name={copied ? "check" : "content-copy"} size={14} color={dracula.fg} />
+            <Text style={{ fontSize: 12, color: dracula.fg }}>{copied ? 'Copiado' : 'Copiar'}</Text>
+          </Pressable>
+          <Pressable onPress={handleDownload} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: 0.8 }}>
+            <MaterialIcons name="file-download" size={14} color={dracula.fg} />
+            <Text style={{ fontSize: 12, color: dracula.fg }}>Baixar</Text>
+          </Pressable>
+        </View>
+      </View>
+      <ScrollView horizontal bounces={false} style={{ padding: 12 }}>
+        <Text style={{ fontFamily: 'monospace', color: dracula.fg, fontSize: 13 }}>
+          {highlightCode(rawCode, Text)}
+        </Text>
+      </ScrollView>
+    </View>
+  );
+};
 
 interface MobileChatMessageProps {
   message: Message;
@@ -20,6 +75,8 @@ const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
   const c = theme.colors;
+  const [showThoughts, setShowThoughts] = useState(false);
+  const hasThoughts = !isUser && !!message.thoughts;
 
   // Markdown styles specifically crafted for the Outfit font + our dark/light palettes
   const mdStyles = {
@@ -84,6 +141,34 @@ const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message }) => {
             : [styles.bubbleAI, { backgroundColor: 'transparent' }],
         ]}
       >
+        {/* ── Resumo de Pensamentos (Gemini Thinking UI) ── */}
+        {hasThoughts && (
+          <View style={{ marginBottom: 12 }}>
+            <Pressable 
+              style={{ flexDirection: 'row', alignItems: 'center', opacity: 0.8 }}
+              onPress={() => setShowThoughts((prev: boolean) => !prev)}
+            >
+              <Text style={{ color: c.textSecondary, fontSize: 13, fontStyle: 'italic', fontWeight: '600' }}>
+                ▶ Pensamento
+              </Text>
+            </Pressable>
+            
+            {showThoughts && (
+              <View style={{ 
+                marginTop: 6, 
+                marginLeft: 4, 
+                paddingLeft: 10, 
+                borderLeftWidth: 2, 
+                borderLeftColor: c.border 
+              }}>
+                <Text style={{ color: c.textSecondary, fontSize: 13, lineHeight: 20, opacity: 0.8 }}>
+                  {message.thoughts}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
         {isUser ? (
           <Text
             style={[
@@ -94,7 +179,13 @@ const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message }) => {
             {message.content}
           </Text>
         ) : (
-          <Markdown style={mdStyles}>
+          <Markdown 
+            style={mdStyles}
+            rules={{
+              fence: (node) => <MobileCodeBlock key={node.key} node={node} c={c} />,
+              code_block: (node) => <MobileCodeBlock key={node.key} node={node} c={c} />
+            }}
+          >
             {message.content}
           </Markdown>
         )}
@@ -185,6 +276,36 @@ const styles = StyleSheet.create({
   bubbleAI: {
     borderRadius: 0,
     paddingLeft: 0,
+    borderBottomLeftRadius: 4,
+    borderWidth: 0,
+    padding: 0,
+    backgroundColor: 'transparent',
+  },
+  thoughtsContainer: {
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginBottom: 8,
+    width: '100%',
+  },
+  thoughtsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  thoughtsTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  thoughtsBody: {
+    padding: 12,
+    borderTopWidth: 1,
+  },
+  text: {
+    fontSize: 15,
+    lineHeight: 22,
   },
   sourcesContainer: { marginTop: 8, paddingTop: 8, borderTopWidth: 1 },
   sourcesHeader: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, marginBottom: 6 },
@@ -192,10 +313,6 @@ const styles = StyleSheet.create({
   sourcesChips: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 6 },
   sourceChip: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 12, borderWidth: 1 },
   sourceChipText: { fontSize: 11, flex: 1 },
-  text: {
-    fontSize: 15,
-    lineHeight: 22,
-  },
 });
 
 export default MobileChatMessage;

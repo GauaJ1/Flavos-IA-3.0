@@ -29,7 +29,7 @@ const SUGGESTIONS = [
 ];
 
 const ChatScreen: React.FC = () => {
-  const { messages, isLoading, error, sendMessage, clearMessages, clearError } = useChat();
+  const { messages, isLoading, isTyping, error, sendMessage, clearMessages, clearError } = useChat();
   const { user } = useAuth();
   const { theme } = useTheme();
   const c = theme.colors;
@@ -111,11 +111,11 @@ const ChatScreen: React.FC = () => {
               </ScrollView>
             </ScrollView>
           ) : (
-            <MobileMessageList messages={messages} isLoading={isLoading} />
+            <MobileMessageList messages={messages} isTyping={isTyping} />
           )}
 
           {/* Input */}
-          <MobileChatInput onSend={sendMessage} disabled={isLoading} bottomInset={insets.bottom} />
+          <MobileChatInput onSend={sendMessage} disabled={isLoading || isTyping} bottomInset={insets.bottom} />
 
         {/* Sidebar Overlay + Drawer */}
         <MobileSidebar

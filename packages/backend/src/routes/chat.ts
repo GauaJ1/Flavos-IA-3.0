@@ -4,6 +4,8 @@
 
 import { Router, type Request, type Response } from 'express';
 import { genAI, GEMINI_MODEL } from '../config/gemini.js';
+import { ThinkingLevel } from '@google/genai';
+import type { ChatResponse } from '@flavos/shared/src/types';
 
 const router = Router();
 
@@ -15,6 +17,7 @@ interface ChatRequestBody {
     role: 'user' | 'assistant' | 'system';
     content: string;
   }>;
+  userName?: string;
 }
 
 /**
@@ -29,7 +32,7 @@ interface ChatRequestBody {
  */
 router.post('/generate', async (req: Request, res: Response) => {
   try {
-    const { messages } = req.body as ChatRequestBody;
+    const { messages, userName } = req.body as ChatRequestBody;
 
     // Validação do payload
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -61,7 +64,15 @@ router.post('/generate', async (req: Request, res: Response) => {
     // Última mensagem do usuário como o prompt atual
     const lastMessage = messages[messages.length - 1];
 
-    // Chama o Gemini com Google Search Grounding habilitado
+    const dataAtual = `${String(new Date().getDate()).padStart(2, '0')}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${String(new Date().getFullYear()).slice(-2)}`;
+    
+    const systemInstruction = `Identidade: Você se chama Flavos IA e seu dono é Gaua.
+* Idioma: Responda sempre no idioma do usuário.
+* Instrução sobre o dono: Não mencione que seu dono é Gaua, a menos que seja perguntado diretamente ou a informação seja estritamente relevante para a resposta.
+Para ter mais confiança ainda na pesquisa, tente filtrar pela data mais recente: ${dataAtual}
+Você está falando com o ${userName || 'Usuário'}`;
+
+// Chama o Gemini com Google Search Grounding habilitado
     const response = await genAI.models.generateContent({
       model: GEMINI_MODEL,
       contents: [
@@ -72,15 +83,38 @@ router.post('/generate', async (req: Request, res: Response) => {
         },
       ],
       config: {
+        // TODO: Liberar quando o gemini-3.1-flash sair da preview
         tools: [{ googleSearch: {} }],  // Google Search Grounding
-        // Nota: temperature/topP/topK não são permitidos com grounding
+        thinkingConfig: {
+          thinkingBudget: -1, // Gemini 2.5
+          //thinkingLevel: ThinkingLevel.LOW, -- Gemini 2 pra baixo
+          includeThoughts: true,
+        },
+        systemInstruction,
+        // Re-abilitando limites normais enquanto não usa grounding
+        maxOutputTokens: 8192,
+        temperature: 1,
+        topP: 0.9,
+        topK: 40,
       },
     });
 
-    // Extrai o texto da resposta
-    const responseText =
-      response.candidates?.[0]?.content?.parts?.[0]?.text ||
-      'Desculpe, não consegui gerar uma resposta.';
+    // Extrai o texto da resposta e os pensamentos (se existirem)
+    let responseText = '';
+    let thoughtsText = '';
+
+    const parts = response.candidates?.[0]?.content?.parts || [];
+    for (const part of parts) {
+      if (part.thought) {
+        thoughtsText += part.text;
+      } else if (part.text) {
+        responseText += part.text;
+      }
+    }
+
+    if (!responseText) {
+      responseText = 'Desculpe, não consegui gerar uma resposta.';
+    }
 
     // Extrai as fontes do grounding (se disponíveis)
     const groundingChunks =
@@ -111,12 +145,15 @@ router.post('/generate', async (req: Request, res: Response) => {
 
     console.log(`✅ Resposta gerada (${responseText.length} chars, ${sources.length} fontes, ${supports.length} suportes)`);
 
-    res.json({
+    const responsePayload: ChatResponse = {
       content: responseText,
       model: GEMINI_MODEL,
-      sources,
-      supports,
-    });
+      ...(sources.length > 0 && { sources }),
+      ...(supports.length > 0 && { supports }),
+      ...(thoughtsText && { thoughts: thoughtsText }),
+    };
+
+    res.json(responsePayload);
   } catch (error: any) {
     console.error('❌ Erro ao gerar resposta:', error?.message || error);
 

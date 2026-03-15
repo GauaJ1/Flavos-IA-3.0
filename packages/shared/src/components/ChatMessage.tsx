@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import type { Message, GroundingSource, GroundingSupport } from '../types';
 import { useTheme } from '../hooks/useTheme';
 import { useAuth } from '../hooks/useAuth';
+import { dracula, highlightCode, getFileExtension } from '../utils/syntaxHighlighter';
 
 // Anota o texto com links inline usando groundingSupports
 // Ex: "Espanha ganhou a Euro 2024" → "[Espanha ganhou a Euro 2024](https://...)"
@@ -32,6 +33,64 @@ function annotateWithSources(
   return result;
 }
 
+// Renderizador customizado para Blocos de Código (Web)
+const WebCodeBlock = ({ inline, className, children, colors }: any) => {
+  const [copied, setCopied] = React.useState(false);
+  const match = /language-(\w+)/.exec(className || '');
+  const language = match ? match[1] : '';
+  const isBlock = !inline && match;
+  
+  const contentStr = String(children).replace(/\n$/, '');
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(contentStr);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownload = () => {
+    const blob = new Blob([contentStr], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const ext = getFileExtension(language);
+    a.download = `codigo-${language || 'snippet'}.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (isBlock) {
+    return (
+      <div style={{ background: dracula.bg, borderRadius: 10, margin: '0.8em 0', overflow: 'hidden', border: `1px solid ${colors.border}` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 16px', background: dracula.header, borderBottom: `1px solid ${colors.border}` }}>
+          <span style={{ fontSize: '0.8rem', color: dracula.fg, textTransform: 'lowercase', fontWeight: 600 }}>{language}</span>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button onClick={handleCopy} style={{ background: 'transparent', border: 'none', color: dracula.fg, opacity: 0.8, cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}>
+              <span className="material-symbols-rounded" style={{ fontSize: 14 }}>{copied ? 'check' : 'content_copy'}</span>
+              {copied ? 'Copiado' : 'Copiar'}
+            </button>
+            <button onClick={handleDownload} style={{ background: 'transparent', border: 'none', color: dracula.fg, opacity: 0.8, cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}>
+              <span className="material-symbols-rounded" style={{ fontSize: 14 }}>download</span>
+              Baixar
+            </button>
+          </div>
+        </div>
+        <pre style={{ padding: '12px 16px', margin: 0, overflowX: 'auto', fontSize: '0.88em' }}>
+          <code style={{ fontFamily: 'monospace', color: dracula.fg }}>
+            {highlightCode(contentStr, 'span')}
+          </code>
+        </pre>
+      </div>
+    );
+  }
+
+  return (
+    <code style={{ fontFamily: 'monospace', background: colors.surfaceVariant, borderRadius: 4, padding: '2px 6px', fontSize: '0.88em', color: dracula.keyword }}>
+      {children}
+    </code>
+  );
+};
+
 interface ChatMessageProps {
   message: Message;
   style?: {
@@ -47,6 +106,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, style }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
   const colors = theme.colors;
+  const hasThoughts = !isUser && !!message.thoughts;
 
   const markdownStyles: React.CSSProperties = {
     margin: 0,
@@ -135,6 +195,47 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, style }) => {
           <span style={{ ...style?.text, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{message.content}</span>
         ) : (
           <>
+            {/* ── Resumo de Pensamentos (Gemini Thinking UI) ── */}
+            {hasThoughts && (
+              <details
+                style={{
+                  color: colors.textSecondary,
+                  fontSize: '0.9rem',
+                  marginBottom: 12,
+                }}
+              >
+                <summary
+                  style={{
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    outline: 'none',
+                    fontWeight: 500,
+                    listStyle: 'none',
+                    fontStyle: 'italic',
+                    opacity: 0.8,
+                  }}
+                >
+                  <span style={{ marginRight: 6, fontSize: '0.8em' }}>▶</span>
+                  Pensamento
+                </summary>
+                <div
+                  style={{
+                    paddingTop: '8px',
+                    paddingLeft: '14px',
+                    borderLeft: `2px solid ${colors.border}`,
+                    marginLeft: '4px',
+                    marginTop: '4px',
+                    lineHeight: 1.5,
+                    whiteSpace: 'pre-wrap',
+                    fontSize: '0.85rem',
+                    opacity: 0.8,
+                  }}
+                >
+                  {message.thoughts}
+                </div>
+              </details>
+            )}
+
             <div
               style={markdownStyles}
               className="ai-markdown"
@@ -150,16 +251,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, style }) => {
                   ul: ({ children }) => <ul style={{ paddingLeft: '1.4em', margin: '0.4em 0', color: colors.text }}>{children}</ul>,
                   ol: ({ children }) => <ol style={{ paddingLeft: '1.4em', margin: '0.4em 0', color: colors.text }}>{children}</ol>,
                   li: ({ children }) => <li style={{ margin: '0.2em 0', lineHeight: 1.6, color: colors.text }}>{children}</li>,
-                  code: ({ node, className, children, ...props }) => {
-                    const isBlock = className?.startsWith('language-');
-                    return isBlock ? (
-                      <pre style={{ background: colors.surfaceVariant, borderRadius: 10, padding: '12px 16px', margin: '0.6em 0', overflowX: 'auto', fontSize: '0.88em' }}>
-                        <code style={{ fontFamily: 'monospace', color: colors.text }}>{children}</code>
-                      </pre>
-                    ) : (
-                      <code style={{ fontFamily: 'monospace', background: colors.surfaceVariant, borderRadius: 4, padding: '2px 6px', fontSize: '0.88em', color: colors.primary }}>{children}</code>
-                    );
-                  },
+                  code: ({ node, inline, className, children, ...props }: any) => (
+                    <WebCodeBlock inline={inline} className={className} colors={colors}>
+                      {children}
+                    </WebCodeBlock>
+                  ),
                   blockquote: ({ children }) => (
                     <blockquote style={{ borderLeft: `3px solid ${colors.primary}`, paddingLeft: '1em', margin: '0.5em 0', color: colors.textSecondary, fontStyle: 'italic' }}>{children}</blockquote>
                   ),

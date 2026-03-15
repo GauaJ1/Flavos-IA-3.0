@@ -67,12 +67,14 @@ export interface Message {
   timestamp: number;
   sources?: GroundingSource[];
   supports?: GroundingSupport[];
+  thoughts?: string;
 }
 
 /** Estado do chat gerenciado pelo Zustand. */
 export interface ChatState {
   messages: Message[];
   isLoading: boolean;
+  isTyping: boolean;
   error: string | null;
   currentConversationId: string | null;
   conversations: ConversationMeta[];
@@ -87,6 +89,7 @@ export interface ChatState {
 /** Payload enviado ao backend proxy. */
 export interface ChatRequest {
   messages: Pick<Message, 'role' | 'content'>[];
+  userName?: string;
 }
 
 /** Fonte retornada pelo Google Search Grounding. */
@@ -105,8 +108,9 @@ export interface GroundingSupport {
 export interface ChatResponse {
   content: string;
   model: string;
-  sources?: GroundingSource[];
-  supports?: GroundingSupport[];
+  sources?: GroundingSource[];      // array de URIs das fontes
+  supports?: GroundingSupport[];    // array de segmentos de texto e seus indices de fonte
+  thoughts?: string;                // Resumo dos pensamentos do modelo (Thinking Level)
 }
 
 // ===== Auth =====

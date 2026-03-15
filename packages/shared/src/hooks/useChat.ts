@@ -22,10 +22,10 @@ function makeGroundingAwareListener(
 ) {
   return (newMessages: Message[]) => {
     set((state: any) => {
-      const sourceMap = new Map<string, Pick<Message, 'sources' | 'supports'>>(
+      const sourceMap = new Map<string, Pick<Message, 'sources' | 'supports' | 'thoughts'>>(
         state.messages
-          .filter((m: Message) => m.sources?.length || m.supports?.length)
-          .map((m: Message) => [m.content.slice(0, 120), { sources: m.sources, supports: m.supports }])
+          .filter((m: Message) => m.sources?.length || m.supports?.length || m.thoughts)
+          .map((m: Message) => [m.content.slice(0, 120), { sources: m.sources, supports: m.supports, thoughts: m.thoughts }])
       );
       const merged = newMessages.map((m: Message) => ({
         ...m,
@@ -47,6 +47,7 @@ interface ExtendedChatState extends ChatState {
 export const useChat = create<ExtendedChatState>((set, get) => ({
   messages: [],
   isLoading: false,
+  isTyping: false,
   error: null,
   currentConversationId: null,
   conversations: [],
@@ -108,7 +109,7 @@ export const useChat = create<ExtendedChatState>((set, get) => ({
 
     set((state) => ({
       messages: [...state.messages, optimisticMsg],
-      isLoading: true,
+      isTyping: true,
       error: null,
     }));
 
@@ -142,9 +143,12 @@ export const useChat = create<ExtendedChatState>((set, get) => ({
         }
       }
 
-      // Chama o backend Gemini com o histórico atual
+      // Chama o backend Gemini com o histórico atual e o nome do usuário
       const history = get().messages.map((m) => ({ role: m.role, content: m.content }));
-      const response = await aiService.generateResponse(history);
+      const response = await aiService.generateResponse(
+        history, 
+        user?.displayName || 'Usuário'
+      );
 
       // Salva resposta da IA + atualiza metadados — batch atômico
       if (user && conversationId) {
@@ -153,12 +157,12 @@ export const useChat = create<ExtendedChatState>((set, get) => ({
           sender: 'ai',
           body: response.content,
         });
-        // Injeta fontes + suportes na última mensagem da IA
-        if (response.sources?.length || response.supports?.length) {
+        // Injeta fontes, suportes e pensamentos na última mensagem da IA
+        if (response.sources?.length || response.supports?.length || response.thoughts) {
           set((state) => ({
             messages: state.messages.map((m, i) =>
               i === state.messages.length - 1 && m.role === 'assistant'
-                ? { ...m, sources: response.sources, supports: response.supports }
+                ? { ...m, sources: response.sources, supports: response.supports, thoughts: response.thoughts }
                 : m
             ),
           }));
@@ -174,15 +178,16 @@ export const useChat = create<ExtendedChatState>((set, get) => ({
               timestamp: Date.now(),
               sources: response.sources,
               supports: response.supports,
+              thoughts: response.thoughts,
             },
           ],
         }));
       }
 
-      set({ isLoading: false });
+      set({ isTyping: false });
     } catch (error) {
       set({
-        isLoading: false,
+        isTyping: false,
         error: error instanceof Error ? error.message : 'Erro ao contactar a IA.',
       });
     }

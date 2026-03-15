@@ -8,7 +8,7 @@ import { ChatMessage } from './ChatMessage';
 
 interface MessageListProps {
   messages: Message[];
-  isLoading?: boolean;
+  isTyping?: boolean;
   /** Platform-specific styles */
   style?: {
     container?: React.CSSProperties;
@@ -24,7 +24,7 @@ interface MessageListProps {
  */
 export const MessageList: React.FC<MessageListProps> = ({
   messages,
-  isLoading = false,
+  isTyping = false,
   style,
 }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -32,7 +32,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   // Auto-scroll para o fim quando novas mensagens chegam
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading]);
+  }, [messages, isTyping]);
 
   return (
     <div
@@ -72,7 +72,7 @@ export const MessageList: React.FC<MessageListProps> = ({
       ))}
 
       {/* Indicador de digitação */}
-      {isLoading && (
+      {isTyping && (
         <div
           style={{
             display: 'flex',

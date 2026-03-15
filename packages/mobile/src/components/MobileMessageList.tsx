@@ -11,12 +11,12 @@ import MobileChatMessage from './MobileChatMessage';
 
 interface MobileMessageListProps {
   messages: Message[];
-  isLoading?: boolean;
+  isTyping?: boolean;
 }
 
 const MobileMessageList: React.FC<MobileMessageListProps> = ({
   messages,
-  isLoading = false,
+  isTyping = false,
 }) => {
   const scrollRef = useRef<ScrollView>(null);
   const { theme } = useTheme();
@@ -24,12 +24,12 @@ const MobileMessageList: React.FC<MobileMessageListProps> = ({
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (messages.length > 0 || isLoading) {
+    if (messages.length > 0 || isTyping) {
       setTimeout(() => {
         scrollRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [messages.length, isLoading]);
+  }, [messages.length, isTyping]);
 
   return (
     <ScrollView
@@ -44,7 +44,7 @@ const MobileMessageList: React.FC<MobileMessageListProps> = ({
       ))}
 
       {/* Typing indicator */}
-      {isLoading && (
+      {isTyping && (
         <View style={styles.typingRow}>
           <Image
             source={require('../../assets/Flavos_3.png')}

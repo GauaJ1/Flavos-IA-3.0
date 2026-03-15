@@ -25,9 +25,10 @@ class AIService {
    * @throws Error se a requisição falhar
    */
   async generateResponse(
-    messages: Pick<Message, 'role' | 'content'>[]
+    messages: Pick<Message, 'role' | 'content'>[],
+    userName?: string
   ): Promise<ChatResponse> {
-    const payload: ChatRequest = { messages };
+    const payload: ChatRequest = { messages, userName };
     const url = `${this.baseUrl}${API_ENDPOINTS.CHAT_GENERATE}`;
     console.log(`[AIService] Sending request to: ${url}`);
 

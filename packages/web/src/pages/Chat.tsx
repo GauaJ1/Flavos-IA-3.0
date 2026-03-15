@@ -6,7 +6,7 @@ import React, { useRef, useEffect } from 'react';
 import { useChat, useTheme, Sidebar, MessageList, ChatInput, useSidebar, useAuth } from '@flavos/shared';
 
 const Chat: React.FC = () => {
-  const { messages, isLoading, error, sendMessage, clearMessages, clearError } = useChat();
+  const { messages, isLoading, error, sendMessage, clearMessages, clearError, isTyping, currentConversationId } = useChat();
   const { theme } = useTheme();
   const { isPinned } = useSidebar();
   const { user } = useAuth();
@@ -181,7 +181,7 @@ const Chat: React.FC = () => {
             <div style={{ paddingBottom: 100 }}>
               <MessageList
                 messages={messages}
-                isLoading={isLoading}
+                isTyping={isTyping}
                 style={{
                   container: { background: 'transparent' },
                 }}
@@ -201,7 +201,7 @@ const Chat: React.FC = () => {
             paddingTop: 30, // Gradiente suave sobrepondo a lista
           }}
         >
-          <ChatInput onSend={sendMessage} disabled={isLoading} />
+          <ChatInput onSend={sendMessage} disabled={isLoading || isTyping} />
         </div>
       </main>
     </div>
