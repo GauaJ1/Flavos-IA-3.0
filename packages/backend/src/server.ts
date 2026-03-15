@@ -34,8 +34,9 @@ app.use(
   })
 );
 
-// JSON body parser
-app.use(express.json({ limit: '1mb' }));
+// JSON body parser — limite elevado para suportar imagens em base64 (inline)
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ limit: '20mb', extended: true }));
 
 // TODO: Firebase — Adicionar middleware de autenticação
 // import { authMiddleware } from './middleware/auth.js';

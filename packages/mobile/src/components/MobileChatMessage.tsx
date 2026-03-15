@@ -2,18 +2,59 @@
 // Flavos IA 3.0 — MobileChatMessage Component
 // ===================================================
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Image, StyleSheet, Pressable, Linking, ScrollView } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import type { Message } from '@flavos/shared';
+import { useAudioPlayer } from 'expo-audio';
+import { VideoView, useVideoPlayer } from 'expo-video';
+import type { Message, AttachmentMeta, MediaAttachment } from '@flavos/shared';
 import { useAuth } from '@flavos/shared';
 import { dracula, highlightCode, getFileExtension } from '@flavos/shared/src/utils/syntaxHighlighter';
 import { useTheme } from '../theme';
 import { Text } from './Text';
+
+// ── Sub-componente: Player de Áudio (expo-audio) ──
+const MobileAudioPlayer = ({ att, c }: { att: MediaAttachment; c: any }) => {
+  const player = useAudioPlayer(`data:${att.mimeType};base64,${att.base64Data}`);
+
+  const togglePlay = () => {
+    if (player.playing) {
+      player.pause();
+    } else {
+      player.play();
+    }
+  };
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4,
+      backgroundColor: c.surfaceVariant, borderRadius: 12, padding: 10 }}>
+      <Pressable onPress={togglePlay}
+        style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: c.primary,
+          alignItems: 'center', justifyContent: 'center' }}>
+        <MaterialIcons name={player.playing ? 'pause' : 'play-arrow'} size={20} color="#fff" />
+      </Pressable>
+      <Text style={{ color: c.textSecondary, fontSize: 12, flex: 1 }} numberOfLines={1}>
+        {att.name}
+      </Text>
+    </View>
+  );
+};
+
+// ── Sub-componente: Player de Vídeo (expo-video) ──
+const MobileVideoPlayer = ({ att }: { att: MediaAttachment }) => {
+  const player = useVideoPlayer(`data:${att.mimeType};base64,${att.base64Data}`);
+  return (
+    <VideoView
+      player={player}
+      allowsPictureInPicture={false}
+      style={{ width: '100%', height: 200, borderRadius: 10, marginBottom: 4 }}
+    />
+  );
+};
 
 // Renderizador custom nativo para Blocos de Código (Mobile)
 const MobileCodeBlock = ({ node, c }: any) => {
@@ -77,6 +118,23 @@ const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message }) => {
   const c = theme.colors;
   const [showThoughts, setShowThoughts] = useState(false);
   const hasThoughts = !isUser && !!message.thoughts;
+  const hasAttachments = !!(message.attachments?.length || message.attachmentsMeta?.length);
+
+  function getMimeIconName(mimeType: string): keyof typeof MaterialIcons.glyphMap {
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType === 'application/pdf') return 'picture-as-pdf';
+    if (mimeType.startsWith('audio/')) return 'music-note';
+    if (mimeType.startsWith('video/')) return 'movie';
+    return 'description';
+  }
+
+  // Chips combinados: runtime + stub do Firestore
+  const metaChips: AttachmentMeta[] = [
+    ...(message.attachments?.map(a => ({ name: a.name, mimeType: a.mimeType })) ?? []),
+    ...(message.attachmentsMeta?.filter(
+      meta => !message.attachments?.some(a => a.name === meta.name)
+    ) ?? []),
+  ];
 
   // Markdown styles specifically crafted for the Outfit font + our dark/light palettes
   const mdStyles = {
@@ -141,6 +199,58 @@ const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message }) => {
             : [styles.bubbleAI, { backgroundColor: 'transparent' }],
         ]}
       >
+        {/* ── Anexos / Attachments ── */}
+        {isUser && hasAttachments && (
+          <View style={{ marginBottom: message.content ? 8 : 0 }}>
+            {/* Imagens com thumbnail */}
+            {message.attachments?.filter(a => a.mimeType.startsWith('image/')).map((att, i) => (
+              <Image
+                key={`img-${i}`}
+                source={{ uri: att.previewUrl || `data:${att.mimeType};base64,${att.base64Data}` }}
+                style={[styles.attachImg, { marginBottom: 4 }]}
+                resizeMode="cover"
+              />
+            ))}
+            {/* Áudio inline via expo-av */}
+            {message.attachments?.filter(a => a.mimeType.startsWith('audio/')).map((att, i) => (
+              <MobileAudioPlayer key={`audio-${i}`} att={att} c={c} />
+            ))}
+            {/* Vídeo inline via expo-av */}
+            {message.attachments?.filter(a => a.mimeType.startsWith('video/')).map((att, i) => (
+              <MobileVideoPlayer key={`video-${i}`} att={att} />
+            ))}
+            {/* Chips para PDF/texto + metachips não-imagem/audio/video do Firestore */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {metaChips.filter(m => !m.mimeType.startsWith('image/') && !m.mimeType.startsWith('audio/') && !m.mimeType.startsWith('video/')).map((meta, i) => (
+                <View key={`chip-${i}`} style={[styles.chip, { backgroundColor: c.surfaceVariant, borderColor: c.border }]}>
+                  <MaterialIcons name={getMimeIconName(meta.mimeType)} size={14} color={c.textSecondary} />
+                  <Text style={{ color: c.textSecondary, fontSize: 12, maxWidth: 140 }} numberOfLines={1}>
+                    {meta.name}
+                  </Text>
+                </View>
+              ))}
+              {/* Metachips áudio/vídeo histórico */}
+              {message.attachmentsMeta?.filter(m => (m.mimeType.startsWith('audio/') || m.mimeType.startsWith('video/')) && !message.attachments?.some(a => a.name === m.name)).map((meta, i) => (
+                <View key={`avmeta-${i}`} style={[styles.chip, { backgroundColor: c.surfaceVariant, borderColor: c.border }]}>
+                  <MaterialIcons name={getMimeIconName(meta.mimeType)} size={14} color={c.textSecondary} />
+                  <Text style={{ color: c.textSecondary, fontSize: 12, maxWidth: 140 }} numberOfLines={1}>
+                    {meta.name}
+                  </Text>
+                </View>
+              ))}
+              {/* Meta chips de imagens do histórico */}
+              {message.attachmentsMeta?.filter(m => m.mimeType.startsWith('image/') && !message.attachments?.some(a => a.name === m.name)).map((meta, i) => (
+                <View key={`imgmeta-${i}`} style={[styles.chip, { backgroundColor: c.surfaceVariant, borderColor: c.border }]}>
+                  <MaterialIcons name="image" size={14} color={c.textSecondary} />
+                  <Text style={{ color: c.textSecondary, fontSize: 12, maxWidth: 140 }} numberOfLines={1}>
+                    {meta.name}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* ── Resumo de Pensamentos (Gemini Thinking UI) ── */}
         {hasThoughts && (
           <View style={{ marginBottom: 12 }}>
@@ -313,6 +423,20 @@ const styles = StyleSheet.create({
   sourcesChips: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 6 },
   sourceChip: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 12, borderWidth: 1 },
   sourceChipText: { fontSize: 11, flex: 1 },
+  attachImg: {
+    width: 200,
+    height: 200,
+    borderRadius: 10,
+  },
+  chip: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
 });
 
 export default MobileChatMessage;

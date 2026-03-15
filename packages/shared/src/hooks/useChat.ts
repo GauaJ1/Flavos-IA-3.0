@@ -3,7 +3,7 @@
 // ===================================================
 
 import { create } from 'zustand';
-import type { ChatState, Message, ConversationMeta } from '../types';
+import type { ChatState, Message, ConversationMeta, MediaAttachment } from '../types';
 import { aiService } from '../services/aiService';
 import { createConversation, saveEntryAndUpdateMeta, listenConversations, listenEntries } from '../services/dbService';
 import { generateId } from '../utils/generateId';
@@ -15,21 +15,26 @@ import type { Unsubscribe } from 'firebase/firestore';
 let _unsubConversations: Unsubscribe | null = null;
 let _unsubEntries: Unsubscribe | null = null;
 
-/** Cria um listener que preserva sources/supports do estado atual ao receber snapshot do Firestore.
- *  Essas propriedades vêm apenas do backend Gemini e não são salvas no Firestore. */
+/** Cria um listener que preserva sources/supports/thoughts/attachments do estado atual ao receber snapshot do Firestore.
+ *  Essas propriedades vêm apenas do cliente e não são salvas no Firestore. */
 function makeGroundingAwareListener(
   set: (fn: (state: any) => any) => void
 ) {
   return (newMessages: Message[]) => {
     set((state: any) => {
-      const sourceMap = new Map<string, Pick<Message, 'sources' | 'supports' | 'thoughts'>>(
+      const runtimeMap = new Map<string, Pick<Message, 'sources' | 'supports' | 'thoughts' | 'attachments'>>(
         state.messages
-          .filter((m: Message) => m.sources?.length || m.supports?.length || m.thoughts)
-          .map((m: Message) => [m.content.slice(0, 120), { sources: m.sources, supports: m.supports, thoughts: m.thoughts }])
+          .filter((m: Message) => m.sources?.length || m.supports?.length || m.thoughts || m.attachments?.length)
+          .map((m: Message) => [m.content.slice(0, 120), {
+            sources: m.sources,
+            supports: m.supports,
+            thoughts: m.thoughts,
+            attachments: m.attachments,
+          }])
       );
       const merged = newMessages.map((m: Message) => ({
         ...m,
-        ...(sourceMap.get(m.content.slice(0, 120)) ?? {}),
+        ...(runtimeMap.get(m.content.slice(0, 120)) ?? {}),
       }));
       return { messages: merged, isLoading: false };
     });
@@ -92,9 +97,9 @@ export const useChat = create<ExtendedChatState>((set, get) => ({
   /**
    * Envia uma mensagem, cria a conversa se necessário (atômico), e salva tudo no Firestore.
    */
-  sendMessage: async (content: string) => {
+  sendMessage: async (content: string, attachments?: MediaAttachment[]) => {
     const trimmed = content.trim();
-    if (!trimmed) return;
+    if (!trimmed && !attachments?.length) return;
 
     const user = useAuth.getState().user;
     let conversationId = get().currentConversationId;
@@ -105,6 +110,7 @@ export const useChat = create<ExtendedChatState>((set, get) => ({
       role: 'user',
       content: trimmed,
       timestamp: Date.now(),
+      ...(attachments?.length && { attachments }),
     };
 
     set((state) => ({
@@ -128,6 +134,10 @@ export const useChat = create<ExtendedChatState>((set, get) => ({
             role: 'user',
             sender: 'user',
             body: trimmed,
+            // Salva apenas metadados leves — NUNCA o base64
+            ...(attachments?.length && {
+              attachmentsMeta: attachments.map(a => ({ name: a.name, mimeType: a.mimeType })),
+            }),
           });
 
           // 3. Só agora assina o listener — primeiro snapshot já tem a entry.
@@ -139,6 +149,9 @@ export const useChat = create<ExtendedChatState>((set, get) => ({
             role: 'user',
             sender: 'user',
             body: trimmed,
+            ...(attachments?.length && {
+              attachmentsMeta: attachments.map(a => ({ name: a.name, mimeType: a.mimeType })),
+            }),
           });
         }
       }
@@ -147,7 +160,8 @@ export const useChat = create<ExtendedChatState>((set, get) => ({
       const history = get().messages.map((m) => ({ role: m.role, content: m.content }));
       const response = await aiService.generateResponse(
         history, 
-        user?.displayName || 'Usuário'
+        user?.displayName || 'Usuário',
+        attachments,
       );
 
       // Salva resposta da IA + atualiza metadados — batch atômico

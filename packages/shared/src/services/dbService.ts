@@ -33,7 +33,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { generateId } from '../utils/generateId';
-import type { Entry, EntryRole, ConversationMeta, AccountProfile, Message } from '../types';
+import type { Entry, EntryRole, ConversationMeta, AccountProfile, Message, AttachmentMeta } from '../types';
 import { getFirebaseDb } from '../config/firebase';
 
 // ===== Helpers =====
@@ -175,10 +175,12 @@ export function listenEntries(
     const messages: Message[] = snap.docs.map((d) => {
       const data = d.data();
       return {
-        id:        d.id,
-        role:      data.role,
-        content:   data.body,
-        timestamp: (data.createdAt as Timestamp)?.toMillis() ?? Date.now(),
+        id:              d.id,
+        role:            data.role,
+        content:         data.body,
+        timestamp:       (data.createdAt as Timestamp)?.toMillis() ?? Date.now(),
+        // Metadados leves de arquivo — nunca base64
+        ...(data.attachmentsMeta?.length && { attachmentsMeta: data.attachmentsMeta as AttachmentMeta[] }),
       };
     });
     onChange(messages);
@@ -196,7 +198,7 @@ export function listenEntries(
  */
 export async function saveEntryAndUpdateMeta(
   conversationId: string,
-  entry: { role: Entry['role']; sender: Entry['sender']; body: string }
+  entry: { role: Entry['role']; sender: Entry['sender']; body: string; attachmentsMeta?: AttachmentMeta[] }
 ): Promise<string> {
   const entryId = newId();
   const entryRef = doc(db(), 'conversations', conversationId, 'entries', entryId);
@@ -210,6 +212,8 @@ export async function saveEntryAndUpdateMeta(
     sender:    entry.sender,
     body:      entry.body,
     createdAt: serverTimestamp(),
+    // Salva apenas metadados leves — NUNCA o base64
+    ...(entry.attachmentsMeta?.length && { attachmentsMeta: entry.attachmentsMeta }),
   });
 
   // 2. Atualiza APENAS os campos de metadata necessários para a sidebar

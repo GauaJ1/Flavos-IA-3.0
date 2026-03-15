@@ -4,7 +4,7 @@
 
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
-import type { Message, GroundingSource, GroundingSupport } from '../types';
+import type { Message, GroundingSource, GroundingSupport, AttachmentMeta } from '../types';
 import { useTheme } from '../hooks/useTheme';
 import { useAuth } from '../hooks/useAuth';
 import { dracula, highlightCode, getFileExtension } from '../utils/syntaxHighlighter';
@@ -107,6 +107,24 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, style }) => {
   const { user } = useAuth();
   const colors = theme.colors;
   const hasThoughts = !isUser && !!message.thoughts;
+  const hasAttachments = !!(message.attachments?.length || message.attachmentsMeta?.length);
+
+  /** Retorna ícone Material para um MIME type */
+  const getMimeIcon = (mime: string) => {
+    if (mime.startsWith('image/')) return 'image';
+    if (mime === 'application/pdf') return 'picture_as_pdf';
+    if (mime.startsWith('audio/')) return 'music_note';
+    if (mime.startsWith('video/')) return 'movie';
+    return 'description';
+  };
+
+  // Chips combinados: runtime (com base64) + stub do Firestore
+  const metaChips: AttachmentMeta[] = [
+    ...(message.attachments?.map(a => ({ name: a.name, mimeType: a.mimeType })) ?? []),
+    ...(message.attachmentsMeta?.filter(
+      meta => !message.attachments?.some(a => a.name === meta.name)
+    ) ?? []),
+  ];
 
   const markdownStyles: React.CSSProperties = {
     margin: 0,
@@ -192,7 +210,85 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, style }) => {
         }}
       >
         {isUser ? (
-          <span style={{ ...style?.text, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{message.content}</span>
+          <>
+            {/* Attachments na mensagem do usuário */}
+            {hasAttachments && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: message.content ? 8 : 0 }}>
+                {/* Imagens inline */}
+                {message.attachments?.filter(a => a.mimeType.startsWith('image/')).map((att, i) => (
+                  <img
+                    key={i}
+                    src={att.previewUrl || `data:${att.mimeType};base64,${att.base64Data}`}
+                    alt={att.name}
+                    style={{ maxWidth: 200, maxHeight: 200, borderRadius: 10, objectFit: 'cover', cursor: 'pointer' }}
+                    onClick={() => window.open(att.previewUrl || `data:${att.mimeType};base64,${att.base64Data}`)}
+                  />
+                ))}
+                {/* Áudio inline */}
+                {message.attachments?.filter(a => a.mimeType.startsWith('audio/')).map((att, i) => (
+                  <div key={`audio-${i}`} style={{ width: '100%' }}>
+                    <p style={{ margin: '0 0 4px', fontSize: '0.78rem', color: colors.textSecondary, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span className="material-symbols-rounded" style={{ fontSize: 14 }}>music_note</span>
+                      {att.name}
+                    </p>
+                    <audio controls src={`data:${att.mimeType};base64,${att.base64Data}`}
+                      style={{ width: '100%', maxWidth: 320, height: 36, borderRadius: 8 }} />
+                  </div>
+                ))}
+                {/* Vídeo inline */}
+                {message.attachments?.filter(a => a.mimeType.startsWith('video/')).map((att, i) => (
+                  <div key={`video-${i}`} style={{ width: '100%' }}>
+                    <p style={{ margin: '0 0 4px', fontSize: '0.78rem', color: colors.textSecondary, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span className="material-symbols-rounded" style={{ fontSize: 14 }}>movie</span>
+                      {att.name}
+                    </p>
+                    <video controls src={`data:${att.mimeType};base64,${att.base64Data}`}
+                      style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 10 }} />
+                  </div>
+                ))}
+                {/* Chips: PDF/texto + metachips não-imagem/audio/video do Firestore */}
+                {metaChips.filter(m => !m.mimeType.startsWith('image/') && !m.mimeType.startsWith('audio/') && !m.mimeType.startsWith('video/')).map((meta, i) => (
+                  <div key={`meta-${i}`} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '4px 10px', borderRadius: 20,
+                    background: colors.surfaceVariant, border: `1px solid ${colors.border}`,
+                    fontSize: '0.82rem', color: colors.textSecondary, maxWidth: 200, overflow: 'hidden',
+                  }}>
+                    <span className="material-symbols-rounded" style={{ fontSize: 16 }}>{getMimeIcon(meta.mimeType)}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meta.name}</span>
+                  </div>
+                ))}
+                {/* Metachips áudio/vídeo do histórico */}
+                {message.attachmentsMeta?.filter(m => (m.mimeType.startsWith('audio/') || m.mimeType.startsWith('video/')) && !message.attachments?.some(a => a.name === m.name)).map((meta, i) => (
+                  <div key={`avmeta-${i}`} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '4px 10px', borderRadius: 20,
+                    background: colors.surfaceVariant, border: `1px solid ${colors.border}`,
+                    fontSize: '0.82rem', color: colors.textSecondary,
+                  }}>
+                    <span className="material-symbols-rounded" style={{ fontSize: 16 }}>{getMimeIcon(meta.mimeType)}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meta.name}</span>
+                  </div>
+                ))}
+                {/* Metachips de imagens do histórico */}
+                {message.attachmentsMeta?.filter(m => m.mimeType.startsWith('image/') && !message.attachments?.some(a => a.name === m.name)).map((meta, i) => (
+                  <div key={`imgmeta-${i}`} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '4px 10px', borderRadius: 20,
+                    background: colors.surfaceVariant, border: `1px solid ${colors.border}`,
+                    fontSize: '0.82rem', color: colors.textSecondary,
+                  }}>
+                    <span className="material-symbols-rounded" style={{ fontSize: 16 }}>image</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meta.name}</span>
+                  </div>
+                ))}
+              </div>
+
+            )}
+            {message.content && (
+              <span style={{ ...style?.text, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{message.content}</span>
+            )}
+          </>
         ) : (
           <>
             {/* ── Resumo de Pensamentos (Gemini Thinking UI) ── */}

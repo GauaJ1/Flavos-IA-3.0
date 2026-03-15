@@ -18,6 +18,11 @@ interface ChatRequestBody {
     content: string;
   }>;
   userName?: string;
+  attachments?: Array<{
+    name: string;
+    mimeType: string;
+    base64Data: string;
+  }>;
 }
 
 /**
@@ -32,7 +37,7 @@ interface ChatRequestBody {
  */
 router.post('/generate', async (req: Request, res: Response) => {
   try {
-    const { messages, userName } = req.body as ChatRequestBody;
+    const { messages, userName, attachments } = req.body as ChatRequestBody;
 
     // Validação do payload
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -65,21 +70,38 @@ router.post('/generate', async (req: Request, res: Response) => {
     const lastMessage = messages[messages.length - 1];
 
     const dataAtual = `${String(new Date().getDate()).padStart(2, '0')}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${String(new Date().getFullYear()).slice(-2)}`;
-    
+
     const systemInstruction = `Identidade: Você se chama Flavos IA e seu dono é Gaua.
 * Idioma: Responda sempre no idioma do usuário.
 * Instrução sobre o dono: Não mencione que seu dono é Gaua, a menos que seja perguntado diretamente ou a informação seja estritamente relevante para a resposta.
 Para ter mais confiança ainda na pesquisa, tente filtrar pela data mais recente: ${dataAtual}
 Você está falando com o ${userName || 'Usuário'}`;
 
-// Chama o Gemini com Google Search Grounding habilitado
+    // Monta as parts da última mensagem: texto + mídias (se houver)
+    const lastMessageParts: any[] = [];
+    if (lastMessage.content.trim()) {
+      lastMessageParts.push({ text: lastMessage.content });
+    }
+    if (attachments?.length) {
+      for (const att of attachments) {
+        lastMessageParts.push({
+          inlineData: {
+            mimeType: att.mimeType,
+            data: att.base64Data,
+          },
+        });
+      }
+      console.log(`📎 ${attachments.length} arquivo(s) recebido(s): ${attachments.map(a => a.name).join(', ')}`);
+    }
+
+    // Chama o Gemini com Google Search Grounding habilitado
     const response = await genAI.models.generateContent({
       model: GEMINI_MODEL,
       contents: [
         ...geminiHistory,
         {
           role: 'user',
-          parts: [{ text: lastMessage.content }],
+          parts: lastMessageParts,
         },
       ],
       config: {
@@ -87,7 +109,7 @@ Você está falando com o ${userName || 'Usuário'}`;
         tools: [{ googleSearch: {} }],  // Google Search Grounding
         thinkingConfig: {
           thinkingBudget: -1, // Gemini 2.5
-          //thinkingLevel: ThinkingLevel.LOW, -- Gemini 2 pra baixo
+          //thinkingLevel: ThinkingLevel.LOW, -- Gemini 3 pra cima
           includeThoughts: true,
         },
         systemInstruction,
@@ -123,7 +145,7 @@ Você está falando com o ${userName || 'Usuário'}`;
     const sources = groundingChunks
       .filter((chunk: any) => chunk?.web?.uri)
       .map((chunk: any) => ({
-        uri:   chunk.web.uri   as string,
+        uri: chunk.web.uri as string,
         title: chunk.web.title as string || chunk.web.uri as string,
       }))
       // Remove duplicatas por URI
@@ -139,7 +161,7 @@ Você está falando com o ${userName || 'Usuário'}`;
     const supports = rawSupports
       .filter((s: any) => s?.segment?.text && s?.groundingChunkIndices?.length)
       .map((s: any) => ({
-        text:         s.segment.text as string,
+        text: s.segment.text as string,
         sourceIndices: s.groundingChunkIndices as number[],
       }));
 

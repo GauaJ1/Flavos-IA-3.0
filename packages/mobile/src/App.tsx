@@ -23,8 +23,9 @@ import { aiService, initFirebase, useAuth } from '@flavos/shared';
 
 // Firebase SDK — inicializado ANTES de qualquer componente usar useAuth/useChat
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeAuth, getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
   apiKey:            process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -36,11 +37,18 @@ const firebaseConfig = {
 };
 
 // Singleton — evita re-inicialização em hot-reload do Expo
-const firebaseApp  = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-const firebaseAuth = getAuth(firebaseApp);
-// NOTA: Firebase JS SDK v11+ removeu getReactNativePersistence.
-// Sessões funcionam mas não persistem entre restarts (aceitável para Expo Go).
-const firebaseDb   = getFirestore(firebaseApp);
+const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+
+// Se o app acabou de ser criado (primeira vez), inicializa Auth com persistência.
+// Em hot-reloads, getAuth() retorna a instância já existente.
+const firebaseAuth = getApps().length > 1
+  ? getAuth(firebaseApp)
+  : initializeAuth(firebaseApp, {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      persistence: require('firebase/auth').getReactNativePersistence(AsyncStorage),
+    });
+
+const firebaseDb = getFirestore(firebaseApp);
 
 // Registra as instâncias no shared package (mesmo padrão do web)
 initFirebase(firebaseAuth, firebaseDb);

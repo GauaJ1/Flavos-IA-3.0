@@ -19,7 +19,8 @@ export interface Entry {
   role: EntryRole;
   sender: EntrySender;
   body: string;
-  createdAt: number; // toMillis() de ServerTimestamp
+  attachmentsMeta?: AttachmentMeta[];
+  createdAt: number;
 }
 
 /**
@@ -60,6 +61,26 @@ export type ConversationMeta = Pick<
  * Representa uma mensagem no estado LOCAL do app (para a UI).
  * Mapeada a partir de Entry para manter compatibilidade com componentes existentes.
  */
+/**
+ * Arquivo de mídia com dados inline (base64) para uso em runtime.
+ * NUNCA salvo no Firestore — apenas usado para transporte ao backend/Gemini.
+ */
+export interface MediaAttachment {
+  name: string;
+  mimeType: string;
+  base64Data: string;    // sem o prefixo "data:...;base64,"
+  previewUrl?: string;   // URL object local para preview imediato (imagens)
+}
+
+/**
+ * Metadados leves de um arquivo — SALVO no Firestore.
+ * Indica que havia um arquivo ali, sem guardar seu conteúdo.
+ */
+export interface AttachmentMeta {
+  name: string;
+  mimeType: string;
+}
+
 export interface Message {
   id: string;
   role: EntryRole;
@@ -68,6 +89,8 @@ export interface Message {
   sources?: GroundingSource[];
   supports?: GroundingSupport[];
   thoughts?: string;
+  attachments?: MediaAttachment[];       // runtime only (base64)
+  attachmentsMeta?: AttachmentMeta[];    // from Firestore (no base64)
 }
 
 /** Estado do chat gerenciado pelo Zustand. */
@@ -78,7 +101,7 @@ export interface ChatState {
   error: string | null;
   currentConversationId: string | null;
   conversations: ConversationMeta[];
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, attachments?: MediaAttachment[]) => Promise<void>;
   clearMessages: () => void;
   clearError: () => void;
   loadConversations: () => void;         // Inicia listener realtime da sidebar
@@ -90,6 +113,7 @@ export interface ChatState {
 export interface ChatRequest {
   messages: Pick<Message, 'role' | 'content'>[];
   userName?: string;
+  attachments?: MediaAttachment[];
 }
 
 /** Fonte retornada pelo Google Search Grounding. */

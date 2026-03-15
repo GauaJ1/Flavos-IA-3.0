@@ -3,7 +3,7 @@
 // ===================================================
 
 import { API_BASE_URL, API_ENDPOINTS } from '../utils/constants';
-import type { ChatRequest, ChatResponse, Message } from '../types';
+import type { ChatRequest, ChatResponse, Message, MediaAttachment } from '../types';
 
 /**
  * Serviço de IA que se comunica com o backend proxy.
@@ -26,9 +26,10 @@ class AIService {
    */
   async generateResponse(
     messages: Pick<Message, 'role' | 'content'>[],
-    userName?: string
+    userName?: string,
+    attachments?: MediaAttachment[]
   ): Promise<ChatResponse> {
-    const payload: ChatRequest = { messages, userName };
+    const payload: ChatRequest = { messages, userName, attachments };
     const url = `${this.baseUrl}${API_ENDPOINTS.CHAT_GENERATE}`;
     console.log(`[AIService] Sending request to: ${url}`);
 
