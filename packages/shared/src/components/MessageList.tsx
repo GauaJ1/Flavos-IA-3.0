@@ -71,8 +71,8 @@ export const MessageList: React.FC<MessageListProps> = ({
         <ChatMessage key={msg.id} message={msg} />
       ))}
 
-      {/* Indicador de digitação */}
-      {isTyping && (
+      {/* Indicador de digitação — só aparece se não houver mensagem em streaming já visível */}
+      {isTyping && !messages.some(m => m.isStreaming) && (
         <div
           style={{
             display: 'flex',

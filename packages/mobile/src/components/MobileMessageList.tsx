@@ -43,8 +43,8 @@ const MobileMessageList: React.FC<MobileMessageListProps> = ({
         <MobileChatMessage key={msg.id} message={msg} />
       ))}
 
-      {/* Typing indicator */}
-      {isTyping && (
+      {/* Typing indicator — só aparece se não houver mensagem em streaming já visível */}
+      {isTyping && !messages.some(m => m.isStreaming) && (
         <View style={styles.typingRow}>
           <Image
             source={require('../../assets/Flavos_3.png')}

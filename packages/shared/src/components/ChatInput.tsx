@@ -17,6 +17,8 @@ const ACCEPTED_TYPES = [
 
 interface ChatInputProps {
   onSend: (message: string, attachments?: MediaAttachment[]) => void;
+  onStop?: () => void;
+  isStreaming?: boolean;
   disabled?: boolean;
   placeholder?: string;
   style?: {
@@ -52,6 +54,8 @@ async function fileToBase64(file: File): Promise<string> {
 
 export const ChatInput: React.FC<ChatInputProps> = ({
   onSend,
+  onStop,
+  isStreaming = false,
   disabled = false,
   placeholder = 'Pergunte qualquer coisa',
   style,
@@ -302,27 +306,54 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             )}
           </button>
 
-          {/* Botão de Envio */}
-          <button
-            onClick={handleSend}
-            disabled={!isValid}
-            style={{
-              width: 45,
-              height: 45,
-              borderRadius: '50%',
-              border: 'none',
-              background: isValid ? 'var(--primary)' : 'transparent',
-              color: isValid ? '#fff' : 'var(--placeholder)',
-              cursor: isValid ? 'pointer' : 'default',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.3s',
-              ...style?.button,
-            }}
-          >
-            <span className="material-symbols-rounded">send</span>
-          </button>
+          {/* Botão de Envio / Stop */}
+          {isStreaming ? (
+            // Stop button — aparece quando a IA está gerando
+            <button
+              onClick={onStop}
+              title="Parar geração"
+              style={{
+                width: 45,
+                height: 45,
+                borderRadius: '50%',
+                border: 'none',
+                background: 'var(--primary)',
+                color: '#fff',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s',
+                animation: 'stop-pulse 1.5s ease-in-out infinite',
+                ...style?.button,
+              }}
+            >
+              <style>{`@keyframes stop-pulse{0%,100%{box-shadow:0 0 0 0 var(--primary-40,rgba(99,102,241,.4))}50%{box-shadow:0 0 0 8px transparent}}`}</style>
+              <span className="material-symbols-rounded" style={{ fontSize: 20, fontVariationSettings: "'FILL' 1" }}>stop</span>
+            </button>
+          ) : (
+            // Send button — estado normal
+            <button
+              onClick={handleSend}
+              disabled={!isValid}
+              style={{
+                width: 45,
+                height: 45,
+                borderRadius: '50%',
+                border: 'none',
+                background: isValid ? 'var(--primary)' : 'transparent',
+                color: isValid ? '#fff' : 'var(--placeholder)',
+                cursor: isValid ? 'pointer' : 'default',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.3s',
+                ...style?.button,
+              }}
+            >
+              <span className="material-symbols-rounded">send</span>
+            </button>
+          )}
         </div>
       </div>
       <p

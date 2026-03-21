@@ -28,7 +28,7 @@ if (!apiKey) {
 
 /**
  * Cliente do Google GenAI configurado com a API key.
- * Usado pelo router para gerar conteúdo com o Gemini 3.1-flash.
+ * Usado pelo router para gerar conteúdo com o Gemini.
  */
 export const genAI = new GoogleGenAI({
   apiKey: apiKey || '',

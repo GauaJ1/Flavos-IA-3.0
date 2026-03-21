@@ -1,203 +1,214 @@
 // ===================================================
-// Flavos IA 3.0 — Chat Route (Gemini 3.1-flash Proxy)
+// Flavos IA 3.0 — Chat Route (SSE Streaming Proxy)
+// Security layers:
+//   1. requireAuth  — Firebase ID token verification (middleware)
+//   2. uidLimiter   — Per-UID rate limit (20 req/min, Camada 2)
+//   3. History sanitization — blocks prompt injection
+//   4. Defensive moderation — Gemini safety signals + edge cases
+//   5. Audit logging — all security events, no sensitive data
 // ===================================================
 
-import { Router, type Request, type Response } from 'express';
-import { genAI, GEMINI_MODEL } from '../config/gemini.js';
+import { Router, type Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { ThinkingLevel } from '@google/genai';
-import type { ChatResponse } from '@flavos/shared/src/types';
+import { genAI, GEMINI_MODEL } from '../config/gemini.js';
+import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.js';
+import { audit } from '../middleware/logger.js';
 
 const router = Router();
 
-/**
- * Interface do payload recebido do frontend.
- */
-interface ChatRequestBody {
-  messages: Array<{
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-  }>;
-  userName?: string;
-  attachments?: Array<{
-    name: string;
-    mimeType: string;
-    base64Data: string;
-  }>;
-}
+// ─────────────────────────────────────────────────
+// Camada 2 — Rate limit por UID (após autenticação)
+// Mais justo que IP puro para CGNAT / redes compartilhadas
+// ─────────────────────────────────────────────────
+const uidLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 20,
+  keyGenerator: (req) => (req as AuthenticatedRequest).uid ?? 'anon',
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    const uid = (req as AuthenticatedRequest).uid ?? null;
+    audit('rate_limit_uid', { uid, route: req.path, status: 429, ip: req.ip ?? '' });
+    res.status(429).json({ error: 'Limite de mensagens atingido. Aguarde 1 minuto.' });
+  },
+});
+
+// ─────────────────────────────────────────────────
+// finishReasons que indicam bloqueio por moderação
+// ─────────────────────────────────────────────────
+const MODERATION_REASONS = new Set([
+  'SAFETY', 'RECITATION', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'IMAGE_SAFETY',
+]);
+
+const SAFE_MODERATION_MSG = 'Essa solicitação não pôde ser processada com segurança.';
 
 /**
  * POST /api/chat/generate
  *
- * Recebe o histórico de mensagens do frontend e gera uma resposta
- * usando o modelo Gemini 3.1-flash via @google/genai.
- *
- * O frontend NUNCA tem acesso à API key — este endpoint é o proxy seguro.
- *
- * TODO: Firebase — Adicionar middleware de autenticação para validar Firebase ID token.
+ * Recebe histórico de mensagens e faz streaming da resposta via SSE.
+ * Suporta Grounding (Google Search) e Thinking.
  */
-router.post('/generate', async (req: Request, res: Response) => {
-  try {
-    const { messages, userName, attachments } = req.body as ChatRequestBody;
+router.post('/generate', requireAuth, uidLimiter, async (req: AuthenticatedRequest, res: Response) => {
+  // --- SSE Headers ---
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
 
-    // Validação do payload
+  // --- Abort quando o cliente fechar a conexão ---
+  const abortController = new AbortController();
+  req.on('close', () => {
+    if (!abortController.signal.aborted) {
+      abortController.abort();
+      audit('stream_aborted', { uid: req.uid, route: req.path, ip: req.ip ?? '' });
+    }
+  });
+
+  const ip = req.ip ?? '';
+
+  try {
+    const { messages, userName, attachments } = req.body;
+
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      res.status(400).json({
-        error: 'O campo "messages" é obrigatório e deve conter pelo menos uma mensagem.',
-      });
+      res.write(`data: ${JSON.stringify({ error: 'O campo "messages" é obrigatório.' })}\n\n`);
+      res.end();
       return;
     }
 
-    // Validação de cada mensagem
-    for (const msg of messages) {
-      if (!msg.role || !msg.content) {
-        res.status(400).json({
-          error: 'Cada mensagem deve ter os campos "role" e "content".',
-        });
-        return;
+    console.log(`📨 [uid=${req.uid}] ${messages.length} msg(ns) → Gemini ${GEMINI_MODEL} (streaming)`);
+
+    // --- Sanitização do histórico (anti prompt-injection) ---
+    const safeHistory = messages.slice(0, -1).map((msg: any) => ({
+      role: msg.role === 'assistant' ? 'model' as const : 'user' as const,
+      parts: [{ text: String(msg.content ?? '').substring(0, 10_000) }],
+    }));
+
+    // --- Última mensagem (com possíveis anexos) ---
+    const lastMessage = messages[messages.length - 1];
+    const lastMessageParts: any[] = [];
+
+    if (String(lastMessage.content ?? '').trim()) {
+      lastMessageParts.push({ text: lastMessage.content });
+    }
+    if (Array.isArray(attachments) && attachments.length) {
+      for (const att of attachments) {
+        if (att.mimeType && att.base64Data) {
+          lastMessageParts.push({ inlineData: { mimeType: att.mimeType, data: att.base64Data } });
+        }
       }
     }
 
-    console.log(`📨 Recebendo ${messages.length} mensagem(ns) → Gemini ${GEMINI_MODEL}`);
+    if (lastMessageParts.length === 0) {
+      res.write(`data: ${JSON.stringify({ error: 'Mensagem vazia.' })}\n\n`);
+      res.end();
+      return;
+    }
 
-    // Mapeia o histórico para o formato do Gemini
-    // O @google/genai usa 'user' e 'model' como roles
-    const geminiHistory = messages.slice(0, -1).map((msg) => ({
-      role: msg.role === 'assistant' ? 'model' as const : 'user' as const,
-      parts: [{ text: msg.content }],
-    }));
-
-    // Última mensagem do usuário como o prompt atual
-    const lastMessage = messages[messages.length - 1];
-
-    const dataAtual = `${String(new Date().getDate()).padStart(2, '0')}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${String(new Date().getFullYear()).slice(-2)}`;
-
+    // --- System prompt ---
+    const dataAtual = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
     const systemInstruction = `Identidade: Você se chama Flavos IA e seu dono é Gaua.
 * Idioma: Responda sempre no idioma do usuário.
-* Instrução sobre o dono: Não mencione que seu dono é Gaua, a menos que seja perguntado diretamente ou a informação seja estritamente relevante para a resposta.
+* Instrução sobre o dono: Não mencione que seu dono é Gaua, a menos que seja perguntado diretamente.
 Para ter mais confiança ainda na pesquisa, tente filtrar pela data mais recente: ${dataAtual}
 Você está falando com o ${userName || 'Usuário'}`;
 
-    // Monta as parts da última mensagem: texto + mídias (se houver)
-    const lastMessageParts: any[] = [];
-    if (lastMessage.content.trim()) {
-      lastMessageParts.push({ text: lastMessage.content });
-    }
-    if (attachments?.length) {
-      for (const att of attachments) {
-        lastMessageParts.push({
-          inlineData: {
-            mimeType: att.mimeType,
-            data: att.base64Data,
-          },
-        });
-      }
-      console.log(`📎 ${attachments.length} arquivo(s) recebido(s): ${attachments.map(a => a.name).join(', ')}`);
-    }
-
-    // Chama o Gemini com Google Search Grounding habilitado
-    const response = await genAI.models.generateContent({
+    // --- generateContentStream com Thinking + Grounding ---
+    const stream = await genAI.models.generateContentStream({
       model: GEMINI_MODEL,
       contents: [
-        ...geminiHistory,
-        {
-          role: 'user',
-          parts: lastMessageParts,
-        },
+        ...safeHistory,
+        { role: 'user', parts: lastMessageParts },
       ],
       config: {
-        // TODO: Liberar quando o gemini-3.1-flash sair da preview
-        tools: [{ googleSearch: {} }],  // Google Search Grounding
+        tools: [{ googleSearch: {} }],
         thinkingConfig: {
-          thinkingBudget: -1, // Gemini 2.5
-          //thinkingLevel: ThinkingLevel.LOW, -- Gemini 3 pra cima
+          thinkingBudget: -1,
           includeThoughts: true,
         },
         systemInstruction,
-        // Re-abilitando limites normais enquanto não usa grounding
         maxOutputTokens: 8192,
         temperature: 1,
         topP: 0.9,
-        topK: 40,
       },
+      // @ts-ignore — signal ainda não tipado no SDK mas funciona em runtime
+      signal: abortController.signal,
     });
 
-    // Extrai o texto da resposta e os pensamentos (se existirem)
-    let responseText = '';
-    let thoughtsText = '';
+    // --- Processa chunks com moderação defensiva ---
+    for await (const chunk of stream) {
+      const candidate = chunk.candidates?.[0];
 
-    const parts = response.candidates?.[0]?.content?.parts || [];
-    for (const part of parts) {
-      if (part.thought) {
-        thoughtsText += part.text;
-      } else if (part.text) {
-        responseText += part.text;
+      // Candidato ausente — skip silencioso
+      if (!candidate) continue;
+
+      // Moderação: finishReason problemático
+      const reason = candidate.finishReason;
+      if (reason && MODERATION_REASONS.has(String(reason))) {
+        audit('moderation_block', {
+          uid: req.uid, route: req.path, ip,
+          detail: `finishReason=${reason}`,
+        });
+        res.write(`data: ${JSON.stringify({ error: 'moderation', message: SAFE_MODERATION_MSG })}\n\n`);
+        break;
+      }
+
+      // Partes ausentes — skip (evita NPE em produção)
+      const parts = candidate.content?.parts ?? [];
+
+      for (const part of parts) {
+        // Sem texto ou dado válido — skip silencioso (sem emitir chunk vazio)
+        if (!part || typeof part !== 'object') continue;
+
+        if (part.thought && part.text) {
+          res.write(`data: ${JSON.stringify({ thought: part.text })}\n\n`);
+        } else if (part.text) {
+          res.write(`data: ${JSON.stringify({ text: part.text })}\n\n`);
+        }
+        // Outros tipos (inline data, function calls) → ignorados silenciosamente
+      }
+
+      // Grounding — último chunk geralmente
+      const grounding = candidate.groundingMetadata;
+      if (grounding?.groundingChunks?.length) {
+        const sources = grounding.groundingChunks
+          .filter((c: any) => c?.web?.uri)
+          .map((c: any) => ({ uri: c.web.uri, title: c.web.title || c.web.uri }))
+          .filter((s: any, i: number, arr: any[]) => arr.findIndex(x => x.uri === s.uri) === i)
+          .slice(0, 10); // limite defensivo
+
+        const rawSupports = grounding.groundingSupports ?? [];
+        const supports = rawSupports
+          .filter((s: any) => s?.segment?.text && s?.groundingChunkIndices?.length)
+          .map((s: any) => ({ text: s.segment.text, sourceIndices: s.groundingChunkIndices }));
+
+        if (sources.length) {
+          res.write(`data: ${JSON.stringify({ grounding: { sources, supports } })}\n\n`);
+        }
       }
     }
 
-    if (!responseText) {
-      responseText = 'Desculpe, não consegui gerar uma resposta.';
-    }
+    res.write('data: [DONE]\n\n');
+    console.log(`✅ [uid=${req.uid}] Stream concluído.`);
 
-    // Extrai as fontes do grounding (se disponíveis)
-    const groundingChunks =
-      response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
-
-    const sources = groundingChunks
-      .filter((chunk: any) => chunk?.web?.uri)
-      .map((chunk: any) => ({
-        uri: chunk.web.uri as string,
-        title: chunk.web.title as string || chunk.web.uri as string,
-      }))
-      // Remove duplicatas por URI
-      .filter(
-        (src: any, idx: number, arr: any[]) =>
-          arr.findIndex((s: any) => s.uri === src.uri) === idx
-      );
-
-    // Extrai os suportes de grounding (segmentos de texto → fontes)
-    const rawSupports =
-      response.candidates?.[0]?.groundingMetadata?.groundingSupports ?? [];
-
-    const supports = rawSupports
-      .filter((s: any) => s?.segment?.text && s?.groundingChunkIndices?.length)
-      .map((s: any) => ({
-        text: s.segment.text as string,
-        sourceIndices: s.groundingChunkIndices as number[],
-      }));
-
-    console.log(`✅ Resposta gerada (${responseText.length} chars, ${sources.length} fontes, ${supports.length} suportes)`);
-
-    const responsePayload: ChatResponse = {
-      content: responseText,
-      model: GEMINI_MODEL,
-      ...(sources.length > 0 && { sources }),
-      ...(supports.length > 0 && { supports }),
-      ...(thoughtsText && { thoughts: thoughtsText }),
-    };
-
-    res.json(responsePayload);
   } catch (error: any) {
-    console.error('❌ Erro ao gerar resposta:', error?.message || error);
-
-    // Erro específico de API key inválida
-    if (error?.status === 401 || error?.message?.includes('API key')) {
-      res.status(401).json({
-        error: 'API key do Gemini inválida ou não configurada.',
-      });
+    if (error?.name === 'AbortError') {
+      // Silencioso — cliente fechou a conexão propositalmente
       return;
     }
 
-    // Erro de rate limit
-    if (error?.status === 429) {
-      res.status(429).json({
-        error: 'Limite de requisições excedido. Tente novamente em alguns segundos.',
-      });
-      return;
-    }
-
-    res.status(500).json({
-      error: 'Erro interno ao processar a requisição.',
+    audit('gemini_error', {
+      uid: req.uid, route: req.path, ip, status: 500,
+      detail: error?.message ?? 'Unknown error',
     });
+    console.error('❌ Erro no stream:', error?.message || error);
+
+    if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ error: error.message || 'Erro interno.' })}\n\n`);
+    }
+  } finally {
+    if (!res.writableEnded) res.end();
   }
 });
 

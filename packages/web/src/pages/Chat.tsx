@@ -6,7 +6,7 @@ import React, { useRef, useEffect } from 'react';
 import { useChat, useTheme, Sidebar, MessageList, ChatInput, useSidebar, useAuth } from '@flavos/shared';
 
 const Chat: React.FC = () => {
-  const { messages, isLoading, error, sendMessage, clearMessages, clearError, isTyping, currentConversationId } = useChat();
+  const { messages, isLoading, error, sendMessage, stopGeneration, clearMessages, clearError, isTyping, currentConversationId } = useChat();
   const { theme } = useTheme();
   const { isPinned } = useSidebar();
   const { user } = useAuth();
@@ -201,7 +201,12 @@ const Chat: React.FC = () => {
             paddingTop: 30, // Gradiente suave sobrepondo a lista
           }}
         >
-          <ChatInput onSend={sendMessage} disabled={isLoading || isTyping} />
+          <ChatInput
+            onSend={sendMessage}
+            onStop={stopGeneration}
+            isStreaming={messages.some(m => m.isStreaming)}
+            disabled={isLoading || (isTyping && !messages.some(m => m.isStreaming))}
+          />
         </div>
       </main>
     </div>

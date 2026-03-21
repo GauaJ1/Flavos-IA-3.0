@@ -44,6 +44,7 @@ export interface Conversation {
   updatedAt: number;
   status: ConversationStatus;
   visibility: 'private';
+  pinned?: boolean;
 }
 
 /**
@@ -52,7 +53,7 @@ export interface Conversation {
  */
 export type ConversationMeta = Pick<
   Conversation,
-  'id' | 'title' | 'lastMsgPreview' | 'lastMsgRole' | 'lastMsgAt' | 'updatedAt' | 'status'
+  'id' | 'title' | 'lastMsgPreview' | 'lastMsgRole' | 'lastMsgAt' | 'updatedAt' | 'status' | 'pinned'
 >;
 
 // ===== Estado do Chat (Zustand) =====
@@ -91,6 +92,7 @@ export interface Message {
   thoughts?: string;
   attachments?: MediaAttachment[];       // runtime only (base64)
   attachmentsMeta?: AttachmentMeta[];    // from Firestore (no base64)
+  isStreaming?: boolean;                 // true while SSE stream is active
 }
 
 /** Estado do chat gerenciado pelo Zustand. */
@@ -207,4 +209,5 @@ export interface ThemeState {
   mode: ThemeMode;
   theme: Theme;
   toggleTheme: () => void;
+  setMode: (mode: ThemeMode) => void;
 }

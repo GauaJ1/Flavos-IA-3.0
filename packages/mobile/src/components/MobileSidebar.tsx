@@ -2,16 +2,102 @@
 // Flavos IA 3.0 — MobileSidebar (Firestore realtime)
 // ===================================================
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import {
   View, Pressable, Animated, StyleSheet,
-  ScrollView, TouchableWithoutFeedback, Image,
+  ScrollView, TouchableWithoutFeedback, Image, Modal,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import { useAuth, useChat } from '@flavos/shared';
 import { Text } from './Text';
 import type { ConversationMeta } from '@flavos/shared';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+/** Converte timestamp (ms) para texto relativo */
+function timeAgo(ts: number): string {
+  const diff = Date.now() - ts;
+  if (diff < 60_000)            return 'agora';
+  if (diff < 3_600_000)         return `há ${Math.floor(diff / 60_000)} min`;
+  if (diff < 86_400_000)        return `há ${Math.floor(diff / 3_600_000)} h`;
+  if (diff < 86_400_000 * 2)    return 'ontem';
+  if (diff < 86_400_000 * 7)    return `há ${Math.floor(diff / 86_400_000)} dias`;
+  return new Date(ts).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+}
+
+/** Animated conversation item — fades in with stagger */
+const AnimatedConvItem: React.FC<{
+  conv: ConversationMeta;
+  active: boolean;
+  delay: number;
+  onPress: () => void;
+  onLongPress: () => void;
+  colors: any;
+}> = ({ conv, active, delay, onPress, onLongPress, colors: c }) => {
+  const opacity    = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(8)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity,    { toValue: 1, duration: 220, delay, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: 220, delay, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const time   = conv.lastMsgAt ? timeAgo(conv.lastMsgAt) : '';
+
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+      <Pressable
+        onPress={onPress}
+        onLongPress={onLongPress}
+        delayLongPress={400}
+        style={({ pressed }) => [
+          styles.chatItem,
+          active && { backgroundColor: `${c.primary}14` },
+          pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] },
+        ]}
+        accessibilityLabel={conv.title}
+      >
+        {/* Chat icon — outline */}
+        <View style={[
+          styles.letterIcon,
+          {
+            backgroundColor: active ? `${c.primary}26` : 'rgba(255,255,255,0.07)',
+            borderColor: active ? `${c.primary}40` : 'rgba(255,255,255,0.07)',
+          },
+        ]}>
+          <MaterialIcons
+            name="chat-bubble-outline"
+            size={17}
+            color={active ? c.primary : c.textSecondary}
+          />
+        </View>
+
+        {/* Text block */}
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <Text
+              numberOfLines={1}
+              weight={active ? 'semibold' : 'regular'}
+              style={[styles.chatItemTitle, { color: c.text, opacity: active ? 1 : 0.88, flex: 1 }]}
+            >
+              {conv.title}
+            </Text>
+            {conv.pinned && (
+              <MaterialIcons name="push-pin" size={11} color={c.textSecondary} style={{ opacity: 0.55 }} />
+            )}
+          </View>
+          {!!time && (
+            <Text style={[styles.chatItemTime, { color: c.textSecondary }]}>
+              {time}
+            </Text>
+          )}
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+};
 
 const SIDEBAR_WIDTH = 280;
 
@@ -26,9 +112,11 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
   const { logout, user } = useAuth();
   const {
     conversations, currentConversationId,
-    loadConversations, loadConversation, unsubscribeAll,
+    loadConversations, loadConversation, unsubscribeAll, pinConversation,
   } = useChat();
   const c = theme.colors;
+
+  const [longPressedConv, setLongPressedConv] = useState<ConversationMeta | null>(null);
 
   // Animações de entrada/saída
   const translateX    = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
@@ -134,48 +222,28 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
               Nenhuma conversa ainda.
             </Text>
           ) : (
-            conversations.map((conv: ConversationMeta) => {
-              const active = currentConversationId === conv.id;
-              return (
-                <Pressable
-                  key={conv.id}
-                  onPress={() => handleSelectConversation(conv.id)}
-                  style={({ pressed }) => [
-                    styles.chatItem,
-                    { borderLeftColor: active ? c.primary : 'transparent' },
-                    (pressed || active) && { backgroundColor: c.background },
-                  ]}
-                  accessibilityLabel={conv.title}
-                >
-                  <MaterialIcons
-                    name="chat-bubble-outline"
-                    size={16}
-                    color={active ? c.primary : c.textSecondary}
-                  />
-                  <View style={styles.chatItemContent}>
-                    <Text
-                      numberOfLines={1}
-                      weight={active ? 'semibold' : 'regular'}
-                      style={[styles.chatItemTitle, { color: active ? c.primary : c.text }]}
-                    >
-                      {conv.title}
-                    </Text>
-                    {conv.lastMsgPreview ? (
-                      <Text numberOfLines={1} style={[styles.chatItemPreview, { color: c.textSecondary }]}>
-                        {conv.lastMsgRole === 'assistant' ? '🤖 ' : ''}{conv.lastMsgPreview}
-                      </Text>
-                    ) : null}
-                  </View>
-                </Pressable>
-              );
-            })
+            conversations.map((conv: ConversationMeta, idx: number) => (
+              <AnimatedConvItem
+                key={conv.id}
+                conv={conv}
+                active={currentConversationId === conv.id}
+                delay={Math.min(idx * 30, 180)}
+                onPress={() => handleSelectConversation(conv.id)}
+                onLongPress={() => setLongPressedConv(conv)}
+                colors={c}
+              />
+            ))
           )}
         </ScrollView>
 
         {/* Ações do rodapé */}
         <View style={[styles.bottomActions, { borderTopColor: c.border }]}>
           <Pressable
-            onPress={toggleTheme}
+            onPress={() => {
+              const newMode = mode === 'dark' ? 'light' : 'dark';
+              AsyncStorage.setItem('flavos_theme_mode', newMode).catch(() => {});
+              toggleTheme();
+            }}
             style={({ pressed }) => [styles.actionBtn, pressed && { backgroundColor: c.background }]}
             accessibilityLabel="Alternar tema"
           >
@@ -194,6 +262,80 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
             <Text weight="medium" style={[styles.actionText, { color: c.error }]}>Sair</Text>
           </Pressable>
         </View>
+
+        {/* Modal de Interação (Long Press) Premium */}
+        <Modal
+          visible={!!longPressedConv}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setLongPressedConv(null)}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center' }}>
+            <TouchableWithoutFeedback onPress={() => setLongPressedConv(null)}>
+              <View style={StyleSheet.absoluteFillObject} />
+            </TouchableWithoutFeedback>
+            
+            {longPressedConv && (
+              <Animated.View style={{
+                width: 290,
+                backgroundColor: c.surface,
+                borderRadius: 20,
+                padding: 6,
+                paddingBottom: 8,
+                borderWidth: 1,
+                borderColor: c.border,
+                elevation: 10,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.3,
+                shadowRadius: 16,
+              }}>
+                {/* Cabeçalho do Modal (Título da conversa truncado) */}
+                <View style={{ padding: 16, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: c.border, marginBottom: 4 }}>
+                   <Text weight="semibold" numberOfLines={1} style={{ fontSize: 13, color: c.textSecondary, textAlign: 'center' }}>
+                     {longPressedConv.title}
+                   </Text>
+                </View>
+
+                {/* Opções */}
+                <Pressable
+                  onPress={() => {
+                    pinConversation(longPressedConv.id, !longPressedConv.pinned);
+                    setLongPressedConv(null);
+                  }}
+                  style={({ pressed }) => [
+                    { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 14 },
+                    pressed && { backgroundColor: c.background }
+                  ]}
+                >
+                  <MaterialIcons 
+                    name="push-pin" 
+                    size={20} 
+                    color={c.primary} 
+                    style={{ transform: [{ rotate: longPressedConv.pinned ? '45deg' : '0deg' }] }}
+                  />
+                  <Text weight="medium" style={{ fontSize: 15, color: c.text }}>
+                    {longPressedConv.pinned ? 'Desafixar conversa' : 'Fixar conversa'}
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => setLongPressedConv(null)}
+                  style={({ pressed }) => [
+                    { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 14 },
+                    pressed && { backgroundColor: c.background }
+                  ]}
+                >
+                  <MaterialIcons name="close" size={20} color={c.textSecondary} />
+                  <Text weight="medium" style={{ fontSize: 15, color: c.textSecondary }}>
+                    Cancelar
+                  </Text>
+                </Pressable>
+              </Animated.View>
+            )}
+          </View>
+        </Modal>
+
       </Animated.View>
     </>
   );
@@ -213,10 +355,26 @@ const styles = StyleSheet.create({
   sectionLabel: { fontSize: 10, letterSpacing: 1.2, paddingLeft: 8, marginBottom: 8 },
   chatList: { flex: 1 },
   emptyText: { fontSize: 13, textAlign: 'center', marginTop: 20 },
-  chatItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 9, paddingHorizontal: 10, borderRadius: 12, marginBottom: 2, borderLeftWidth: 3 },
-  chatItemContent: { flex: 1 },
-  chatItemTitle:   { fontSize: 13 },
-  chatItemPreview: { fontSize: 11, marginTop: 2 },
+  chatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    marginBottom: 1,
+  },
+  letterIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    borderWidth: 1,
+  },
+  chatItemTitle:   { fontSize: 13.5, lineHeight: 18 },
+  chatItemTime:    { fontSize: 10.5, marginTop: 2, opacity: 0.65 },
   bottomActions: { marginTop: 'auto', borderTopWidth: 1, paddingTop: 14, gap: 4 },
   actionBtn:  { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12 },
   actionText: { fontSize: 15 },

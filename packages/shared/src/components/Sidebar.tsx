@@ -2,12 +2,31 @@
 // Flavos IA 3.0 — Sidebar (Animações + Pin Mode)
 // ===================================================
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useTheme } from '../hooks/useTheme';
 import { useAuth } from '../hooks/useAuth';
 import { useChat } from '../hooks/useChat';
 import { useSidebar } from '../hooks/useSidebar';
 import type { ConversationMeta } from '../types';
+
+/** Converte timestamp (ms) para texto relativo: "agora", "há 5 min", "ontem", etc. */
+function timeAgo(ts: number): string {
+  const diff = Date.now() - ts;
+  if (diff < 60_000)              return 'agora';
+  if (diff < 3_600_000)           return `há ${Math.floor(diff / 60_000)} min`;
+  if (diff < 86_400_000)          return `há ${Math.floor(diff / 3_600_000)} h`;
+  if (diff < 86_400_000 * 2)      return 'ontem';
+  if (diff < 86_400_000 * 7)      return `há ${Math.floor(diff / 86_400_000)} dias`;
+  return new Date(ts).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+}
+
+/** CSS keyframes for conversation item stagger entry */
+const CONV_ANIM_CSS = `
+@keyframes convFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+`.trim();
 
 export const Sidebar: React.FC = () => {
   const { mode, toggleTheme, theme } = useTheme();
@@ -15,12 +34,29 @@ export const Sidebar: React.FC = () => {
   const { isOpen, isPinned, open, close, toggle, togglePin } = useSidebar();
   const {
     clearMessages, loadConversations, loadConversation,
-    unsubscribeAll, conversations, currentConversationId,
+    unsubscribeAll, conversations, currentConversationId, pinConversation,
   } = useChat();
   const c = theme.colors;
   const SIDEBAR_W = 268;
 
+  // 3-dot menu state
+  const [hoveredId, setHoveredId]   = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => { if (user) loadConversations(); }, [user?.id]);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!openMenuId) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openMenuId]);
 
   // Bloqueia scroll do body só no modo overlay (não fixado)
   useEffect(() => {
@@ -181,43 +217,164 @@ export const Sidebar: React.FC = () => {
         }}>Conversas</p>
 
         {/* Lista */}
-        <ul style={{ flex: 1, listStyle: 'none', padding: '2px 8px', margin: 0, overflowY: 'auto' }}>
+        <ul style={{ flex: 1, listStyle: 'none', padding: '4px 8px', margin: 0, overflowY: 'auto' }}>
+          {/* Inject keyframes once */}
+          <style>{CONV_ANIM_CSS}</style>
+
           {conversations.length === 0 ? (
-            <li style={{ padding: '20px 12px', color: c.textSecondary, fontSize: 12.5, textAlign: 'center' }}>
+            <li style={{
+              padding: '32px 12px', color: c.textSecondary, fontSize: 12.5,
+              textAlign: 'center', opacity: 0.6,
+            }}>
               Nenhuma conversa ainda.
             </li>
           ) : (
-            conversations.map((conv: ConversationMeta) => {
-              const active = currentConversationId === conv.id;
+            conversations.map((conv: ConversationMeta, idx: number) => {
+              const active   = currentConversationId === conv.id;
+              const hovered  = hoveredId === conv.id;
+              const menuOpen = openMenuId === conv.id;
+              const time     = conv.lastMsgAt ? timeAgo(conv.lastMsgAt) : '';
               return (
                 <li
                   key={conv.id}
-                  onClick={() => handleSelect(conv.id)}
+                  onMouseEnter={() => setHoveredId(conv.id)}
+                  onMouseLeave={() => { setHoveredId(null); }}
                   style={{
-                    padding: '8px 10px', borderRadius: 8, cursor: 'pointer',
-                    marginBottom: 2, display: 'flex', flexDirection: 'column', gap: 2,
-                    background: active ? `${c.primary}1a` : 'transparent',
-                    borderLeft: `3px solid ${active ? c.primary : 'transparent'}`,
-                    transition: 'background 0.15s',
+                    padding: '8px 6px 8px 10px',
+                    borderRadius: 12,
+                    cursor: 'pointer',
+                    marginBottom: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    position: 'relative',
+                    zIndex: menuOpen ? 50 : hovered ? 10 : 1,
+                    background: active
+                      ? `${c.primary}14`
+                      : hovered ? `${c.primary}0a` : 'transparent',
+                    boxShadow: active ? `inset 0 0 0 1px ${c.primary}22` : 'none',
+                    transition: 'background 0.18s ease, box-shadow 0.18s ease',
+                    animation: `convFadeIn 220ms ${Math.min(idx * 30, 180)}ms both ease-out`,
                   }}
-                  onMouseOver={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = `${c.primary}0d`; }}
-                  onMouseOut={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                  onMouseDown={(e) => {
+                    // Don't scale when clicking the menu button
+                    if ((e.target as HTMLElement).closest('[data-menu]')) return;
+                    (e.currentTarget as HTMLElement).style.transform = 'scale(0.985)';
+                    (e.currentTarget as HTMLElement).style.transition = 'transform 0.1s ease';
+                  }}
+                  onMouseUp={(e) => {
+                    (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
+                    (e.currentTarget as HTMLElement).style.transition = 'transform 0.2s ease';
+                  }}
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('[data-menu]')) return;
+                    handleSelect(conv.id);
+                  }}
                 >
+                  {/* Chat icon */}
                   <span style={{
-                    fontSize: 13, fontWeight: active ? 600 : 400,
-                    color: active ? c.primary : c.text,
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    width: 34, height: 34,
+                    borderRadius: 10, flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: active
+                      ? `${c.primary}22`
+                      : mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                    border: `1px solid ${active ? `${c.primary}35` : mode === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}`,
+                    color: active ? c.primary : c.textSecondary,
+                    transition: 'all 0.18s ease',
                   }}>
-                    {conv.title}
-                  </span>
-                  {conv.lastMsgPreview && (
-                    <span style={{
-                      fontSize: 11, color: c.textSecondary,
-                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                    }}>
-                      {conv.lastMsgRole === 'assistant' ? '🤖 ' : ''}{conv.lastMsgPreview}
+                    <span className="material-symbols-rounded" style={{ fontSize: 16, fontVariationSettings: "'FILL' 0, 'wght' 300", lineHeight: 1 }}>
+                      chat_bubble
                     </span>
-                  )}
+                  </span>
+
+                  {/* Text block */}
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{
+                      fontSize: 13.5, fontWeight: active ? 600 : 450,
+                      color: c.text,
+                      lineHeight: 1.35,
+                      opacity: active ? 1 : 0.88,
+                      transition: 'opacity 0.18s',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                    }}>
+                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flexShrink: 1 }}>
+                        {conv.title}
+                      </span>
+                      {conv.pinned && (
+                        <span className="material-symbols-rounded" style={{ fontSize: 13, color: c.primary, flexShrink: 0, fontVariationSettings: "'FILL' 1" }}>
+                          push_pin
+                        </span>
+                      )}
+                    </div>
+                    {time && (
+                      <div style={{ fontSize: 10.5, color: c.textSecondary, marginTop: 2, opacity: 0.65, letterSpacing: 0.1 }}>
+                        {time}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 3-dot button — visible on hover or menu open */}
+                  <div data-menu style={{ position: 'relative', flexShrink: 0 }}>
+                    <button
+                      data-menu
+                      onClick={(e) => { e.stopPropagation(); setOpenMenuId(menuOpen ? null : conv.id); }}
+                      title="Opções"
+                      style={{
+                        width: 28, height: 28, borderRadius: 8,
+                        border: 'none', background: menuOpen
+                          ? (mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)')
+                          : 'transparent',
+                        color: c.textSecondary,
+                        cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        opacity: hovered || menuOpen ? 1 : 0,
+                        transition: 'opacity 0.15s ease, background 0.15s ease',
+                        pointerEvents: hovered || menuOpen ? 'all' : 'none',
+                      }}
+                      onMouseOver={(e) => { (e.currentTarget as HTMLElement).style.background = mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.07)'; }}
+                      onMouseOut={(e) => { if (!menuOpen) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                    >
+                      <span className="material-symbols-rounded" style={{ fontSize: 17, fontVariationSettings: "'wght' 400" }}>more_horiz</span>
+                    </button>
+
+                    {/* Popover menu */}
+                    {menuOpen && (
+                      <div
+                        ref={menuRef}
+                        data-menu
+                        style={{
+                          position: 'absolute', top: 32, right: 0, zIndex: 50,
+                          background: mode === 'dark' ? '#1e1e2a' : '#fff',
+                          border: `1px solid ${c.border}`,
+                          borderRadius: 10,
+                          boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                          minWidth: 160,
+                          padding: '4px',
+                          animation: 'convFadeIn 150ms ease-out both',
+                        }}
+                      >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            pinConversation(conv.id, !conv.pinned);
+                            setOpenMenuId(null);
+                          }}
+                          style={{
+                            width: '100%', display: 'flex', alignItems: 'center', gap: 9,
+                            padding: '8px 10px', borderRadius: 7, border: 'none',
+                            background: 'none', color: c.text, cursor: 'pointer',
+                            fontSize: 13, fontFamily: 'inherit', textAlign: 'left',
+                          }}
+                          onMouseOver={(e) => { (e.currentTarget as HTMLElement).style.background = `${c.primary}14`; }}
+                          onMouseOut={(e) => { (e.currentTarget as HTMLElement).style.background = 'none'; }}
+                        >
+                          <span className="material-symbols-rounded" style={{ fontSize: 16, color: c.primary, fontVariationSettings: conv.pinned ? "'FILL' 1" : "'FILL' 0" }}>push_pin</span>
+                          {conv.pinned ? 'Desafixar' : 'Fixar conversa'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </li>
               );
             })

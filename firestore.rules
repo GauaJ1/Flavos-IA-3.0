@@ -35,46 +35,110 @@ service cloud.firestore {
              == request.auth.uid;
     }
 
+    // ---------------------------------------------------------
+    // isValidConversation()
+    // hasOnly → rejeita campos extras inesperados
+    // is timestamp → todos os campos de data usam serverTimestamp()
+    // ---------------------------------------------------------
     function isValidConversation() {
       let d = request.resource.data;
-      return d.keys().hasAll([
-            'owner', 'title', 'lastMsgPreview', 'lastMsgRole',
-            'lastMsgAt', 'createdAt', 'updatedAt', 'status', 'visibility'
-          ])
+      let requiredKeys = ['owner','title','lastMsgPreview','lastMsgRole',
+                          'lastMsgAt','createdAt','updatedAt','status','visibility'];
+      return d.keys().hasOnly(requiredKeys)
+        && d.keys().hasAll(requiredKeys)
+        && d.owner is string
         && d.owner == request.auth.uid
         && d.title is string
         && d.title.size() <= 200
         && d.lastMsgPreview is string
         && d.lastMsgPreview.size() <= 500
         && d.lastMsgRole in ['user', 'assistant', 'system']
+        && d.lastMsgAt is timestamp       // serverTimestamp()
+        && d.createdAt is timestamp       // serverTimestamp()
+        && d.updatedAt is timestamp       // serverTimestamp()
         && d.status in ['active', 'archived', 'deleted']
         && d.visibility in ['private'];
     }
 
+    // ---------------------------------------------------------
+    // isValidEntry()
+    // hasOnly → bloqueia campos não autorizados
+    // Campos opcionais do Gemini: thoughts, grounding, isStreaming
+    // grounding limitado a 10 itens (Gemini retorna no máx. ~5)
+    // ---------------------------------------------------------
     function isValidEntry() {
       let d = request.resource.data;
-      return d.keys().hasAll(['role', 'sender', 'body', 'createdAt'])
+      return d.keys().hasOnly(['role','sender','body','createdAt','thoughts','grounding','isStreaming'])
+        && d.keys().hasAll(['role','sender','body','createdAt'])
         && d.role   in ['user', 'assistant', 'system']
         && d.sender in ['user', 'ai', 'tool', 'agent', 'system']
         && d.body is string
-        && d.body.size() > 0
-        && d.body.size() <= 32000;
+        && d.body.size() <= 32000
+        && d.createdAt is timestamp       // serverTimestamp()
+        // Opcionais — validação de tipo + limites de tamanho
+        && (!d.keys().hasAny(['thoughts'])
+             || (d.thoughts is string && d.thoughts.size() <= 32000))
+        && (!d.keys().hasAny(['grounding'])
+             || (d.grounding is list && d.grounding.size() <= 10))
+        && (!d.keys().hasAny(['isStreaming'])
+             || d.isStreaming == false);  // nunca persiste true
+    }
+
+    // ---------------------------------------------------------
+    // isValidConversationUpdate()
+    // Valida tipo de cada campo que pode ser alterado.
+    // Impede updates com valores malformados mesmo em campos autorizados.
+    // ---------------------------------------------------------
+    function isValidConversationUpdate() {
+      let d = request.resource.data;
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return (!affected.hasAny(['title'])
+               || d.title is string)
+          && (!affected.hasAny(['lastMsgPreview'])
+               || d.lastMsgPreview is string)
+          && (!affected.hasAny(['lastMsgRole'])
+               || d.lastMsgRole in ['user','assistant','system'])
+          && (!affected.hasAny(['status'])
+               || d.status in ['active','archived','deleted'])
+          && (!affected.hasAny(['visibility'])
+               || d.visibility in ['private'])
+          && (!affected.hasAny(['lastMsgAt'])
+               || d.lastMsgAt is timestamp)
+          && (!affected.hasAny(['updatedAt'])
+               || d.updatedAt is timestamp)
+          && (!affected.hasAny(['pinned'])
+               || d.pinned is bool);
     }
 
     // =========================================================
     // ACCOUNTS: accounts/{uid}
+    // hasOnly nos campos permitidos pelo upsertAccount()
+    // plan bloqueado em ['free'] — expansível para ['free','pro']
+    // uid, createdAt e plan são imutáveis pelo cliente
     // =========================================================
     match /accounts/{uid} {
       allow read: if isOwner(uid);
 
       allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(
+             ['uid','email','displayName','photoURL','plan','createdAt','metadata'])
+        && request.resource.data.keys().hasAll(['uid','email','plan','createdAt'])
         && request.resource.data.uid == uid
-        && request.resource.data.keys().hasAll(['uid', 'email', 'plan', 'createdAt']);
+        && request.resource.data.email is string
+        && request.resource.data.plan in ['free']
+        && request.resource.data.createdAt is timestamp;
 
       allow update: if isOwner(uid)
+        // Campos imutáveis
         && request.resource.data.uid == resource.data.uid
-        && !request.resource.data.diff(resource.data).affectedKeys()
-             .hasAny(['uid', 'plan', 'createdAt']);
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.plan == resource.data.plan
+        // Apenas estes campos podem mudar
+        && request.resource.data.diff(resource.data)
+               .affectedKeys().hasOnly(['email','displayName','photoURL','metadata'])
+        // Tipagem do email se alterado
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['email'])
+             || request.resource.data.email is string);
 
       allow delete: if false;
     }
@@ -91,21 +155,14 @@ service cloud.firestore {
         && ownerIsUnchanged()
         && request.resource.data.diff(resource.data)
              .affectedKeys()
-             .hasOnly([
-               'title', 'lastMsgPreview', 'lastMsgRole', 'lastMsgAt',
-               'updatedAt', 'status', 'visibility'
-             ]);
+             .hasOnly(['title','lastMsgPreview','lastMsgRole','lastMsgAt','updatedAt','status','visibility','pinned'])
+        && isValidConversationUpdate();
 
       // Sem delete — use status: 'deleted'
       allow delete: if false;
 
       // =======================================================
       // ENTRIES: conversations/{conversationId}/entries/{entryId}
-      //
-      // Segurança reforçada (Improvement 1):
-      //   A conversa é criada ANTES das entries, então get() funciona
-      //   corretamente sem quebrar writes atômicos.
-      //   Apenas o owner da conversa pode criar entries.
       // =======================================================
       match /entries/{entryId} {
         allow read: if isParentConversationOwner(conversationId);

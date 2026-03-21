@@ -68,17 +68,6 @@ function AppNavigator() {
   const { isAuthenticated, isLoading } = useAuth();
   const c = theme.colors;
 
-  const flashOpacity = React.useRef(new Animated.Value(0)).current;
-  const isFirstRender = React.useRef(true);
-
-  React.useEffect(() => {
-    if (isFirstRender.current) { isFirstRender.current = false; return; }
-    Animated.sequence([
-      Animated.timing(flashOpacity, { toValue: 1, duration: 120, useNativeDriver: true }),
-      Animated.timing(flashOpacity, { toValue: 0, duration: 280, useNativeDriver: true }),
-    ]).start();
-  }, [mode]);
-
   // Aguarda Firebase verificar sessão antes de renderizar
   if (isLoading) return null;
 
@@ -94,17 +83,6 @@ function AppNavigator() {
           <Stack.Screen name="Chat"  component={ChatScreen}  />
         </Stack.Navigator>
       </NavigationContainer>
-
-      {/* Theme crossfade flash overlay */}
-      <Animated.View
-        pointerEvents="none"
-        style={{
-          ...StyleSheet.absoluteFillObject,
-          backgroundColor: c.background,
-          opacity: flashOpacity,
-          zIndex: 9999,
-        }}
-      />
     </>
   );
 }
@@ -118,11 +96,20 @@ export default function App() {
     Outfit_700Bold,
   });
 
+  const [themeLoaded, setThemeLoaded] = React.useState(false);
+  const setMode = useTheme(state => state.setMode);
+
   React.useEffect(() => {
     aiService.setBaseUrl(process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001');
-  }, []);
 
-  if (!fontsLoaded) return null;
+    AsyncStorage.getItem('flavos_theme_mode')
+      .then((saved) => {
+        if (saved === 'dark' || saved === 'light') setMode(saved);
+      })
+      .finally(() => setThemeLoaded(true));
+  }, [setMode]);
+
+  if (!fontsLoaded || !themeLoaded) return null;
 
   return (
     <SafeAreaProvider>

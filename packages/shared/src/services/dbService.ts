@@ -112,6 +112,7 @@ export function listenConversations(
         lastMsgAt:      (data.lastMsgAt  as Timestamp)?.toMillis() ?? Date.now(),
         updatedAt:      (data.updatedAt  as Timestamp)?.toMillis() ?? Date.now(),
         status:          data.status,
+        pinned:          data.pinned ?? false,
       };
     });
     onChange(conversations);
@@ -150,6 +151,20 @@ export async function createConversation(
   });
 
   return conversationId;
+}
+
+/**
+ * Alterna o estado de fixado (pinned) de uma conversa.
+ * Pinned conversations aparecem no topo da sidebar.
+ */
+export async function pinConversation(
+  conversationId: string,
+  pinned: boolean
+): Promise<void> {
+  const ref = doc(db(), 'conversations', conversationId);
+  await import('firebase/firestore').then(({ updateDoc }) =>
+    updateDoc(ref, { pinned })
+  );
 }
 
 // =====================================================

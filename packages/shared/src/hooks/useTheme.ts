@@ -71,21 +71,56 @@ function createTheme(mode: ThemeMode): Theme {
   };
 }
 
+const isWeb = typeof window !== 'undefined' && 'localStorage' in window;
+
+const getInitialMode = (): ThemeMode => {
+  if (isWeb) {
+    try {
+      const saved = window.localStorage.getItem('flavos_theme_mode');
+      if (saved === 'dark' || saved === 'light') return saved;
+    } catch (e) {
+      // Ignore errors (e.g. private mode)
+    }
+  }
+  return 'dark'; // Padrão inicial
+};
+
 /**
  * Store de tema com Zustand.
- * Persiste a preferência e alterna entre claro/escuro.
+ * Persiste a preferência no localStorage (web) e alterna entre claro/escuro.
  */
-export const useTheme = create<ThemeState>((set) => ({
-  mode: 'dark', // Padrão
-  theme: createTheme('dark'),
+export const useTheme = create<ThemeState>((set) => {
+  const initialMode = getInitialMode();
+  
+  return {
+    mode: initialMode,
+    theme: createTheme(initialMode),
 
-  toggleTheme: () => {
-    set((state) => {
-      const newMode: ThemeMode = state.mode === 'dark' ? 'light' : 'dark';
-      return {
-        mode: newMode,
-        theme: createTheme(newMode),
-      };
-    });
-  },
-}));
+    toggleTheme: () => {
+      set((state) => {
+        const newMode: ThemeMode = state.mode === 'dark' ? 'light' : 'dark';
+        if (isWeb) {
+          try {
+            window.localStorage.setItem('flavos_theme_mode', newMode);
+          } catch (e) {}
+        }
+        return {
+          mode: newMode,
+          theme: createTheme(newMode),
+        };
+      });
+    },
+
+    setMode: (mode: ThemeMode) => {
+      if (isWeb) {
+        try {
+          window.localStorage.setItem('flavos_theme_mode', mode);
+        } catch (e) {}
+      }
+      set({
+        mode,
+        theme: createTheme(mode),
+      });
+    },
+  };
+});

@@ -291,6 +291,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, style }) => {
           </>
         ) : (
           <>
+            {/* Blink keyframe — injected once per render, no side-effects */}
+            <style>{`@keyframes blink-cursor{0%,100%{opacity:1}50%{opacity:0}}`}</style>
             {/* ── Resumo de Pensamentos (Gemini Thinking UI) ── */}
             {hasThoughts && (
               <details
@@ -357,8 +359,20 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, style }) => {
                   ),
                 }}
               >
-                {message.content}
-              </ReactMarkdown>
+              {message.content}
+            </ReactMarkdown>
+            {/* Blinking cursor while streaming */}
+            {message.isStreaming && (
+              <span style={{
+                display: 'inline-block',
+                width: '2px',
+                height: '1.1em',
+                marginLeft: '2px',
+                verticalAlign: 'text-bottom',
+                backgroundColor: colors.primary,
+                animation: 'blink-cursor 1s step-end infinite',
+              }} aria-hidden="true" />
+            )}
             </div>
 
             {/* ── Fontes do Google Search Grounding ── */}

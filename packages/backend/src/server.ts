@@ -5,6 +5,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import rateLimit from 'express-rate-limit';
 import chatRouter from './routes/chat.js';
 
 // Carrega variáveis de ambiente
@@ -46,6 +47,20 @@ app.use(express.urlencoded({ limit: '20mb', extended: true }));
 // Routes
 // ===================================================
 
+import { audit } from './middleware/logger.js';
+
+// Rate limiting — max 30 mensagens por minuto por IP (Camada 1 — sem autenticação)
+const chatLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    audit('rate_limit_ip', { route: req.path, status: 429, ip: req.ip ?? '' });
+    res.status(429).json({ error: 'Muitas requisições. Tente novamente em alguns segundos.' });
+  },
+});
+app.use('/api/chat', chatLimiter);
 app.use('/api/chat', chatRouter);
 
 // Health check

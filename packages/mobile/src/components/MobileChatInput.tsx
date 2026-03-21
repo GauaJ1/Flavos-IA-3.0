@@ -2,7 +2,7 @@
 // Flavos IA 3.0 — MobileChatInput Component (with Media Upload)
 // ===================================================
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   TextInput,
@@ -15,6 +15,7 @@ import {
   Modal,
   TouchableOpacity,
   Text as RNText,
+  Animated,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -25,6 +26,8 @@ import type { MediaAttachment } from '@flavos/shared/src/types';
 
 interface MobileChatInputProps {
   onSend: (message: string, attachments?: MediaAttachment[]) => void;
+  onStop?: () => void;
+  isStreaming?: boolean;
   disabled?: boolean;
   placeholder?: string;
   bottomInset?: number;
@@ -56,6 +59,8 @@ async function uriToBase64(uri: string): Promise<string> {
 
 const MobileChatInput: React.FC<MobileChatInputProps> = ({
   onSend,
+  onStop,
+  isStreaming = false,
   disabled = false,
   placeholder = 'Pergunte qualquer coisa',
   bottomInset = 0,
@@ -65,6 +70,20 @@ const MobileChatInput: React.FC<MobileChatInputProps> = ({
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const { theme } = useTheme();
   const c = theme.colors;
+
+  // Pulsing scale animation for stop button
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!isStreaming) { pulseAnim.setValue(1); return; }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.18, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isStreaming]);
 
   const isValid = (text.trim().length > 0 || attachments.length > 0) && !disabled;
 
@@ -261,19 +280,29 @@ const MobileChatInput: React.FC<MobileChatInputProps> = ({
             )}
           </Pressable>
 
-          {/* Send button */}
-          <Pressable
-            onPress={handleSend}
-            disabled={!isValid}
-            style={({ pressed }) => [
-              styles.sendBtn,
-              { backgroundColor: isValid ? c.primary : 'transparent', opacity: pressed ? 0.75 : 1 },
-            ]}
-            accessibilityLabel="Enviar mensagem"
-            hitSlop={4}
-          >
-            <MaterialIcons name="send" size={20} color={isValid ? '#fff' : c.placeholder} style={{ marginLeft: 3 }} />
-          </Pressable>
+          {/* Send / Stop button */}
+          {isStreaming ? (
+            <Pressable onPress={onStop} accessibilityLabel="Parar geração" hitSlop={4}>
+              <Animated.View
+                style={[styles.sendBtn, { backgroundColor: c.primary, transform: [{ scale: pulseAnim }] }]}
+              >
+                <MaterialIcons name="stop" size={22} color="#fff" />
+              </Animated.View>
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={handleSend}
+              disabled={!isValid}
+              style={({ pressed }) => [
+                styles.sendBtn,
+                { backgroundColor: isValid ? c.primary : 'transparent', opacity: pressed ? 0.75 : 1 },
+              ]}
+              accessibilityLabel="Enviar mensagem"
+              hitSlop={4}
+            >
+              <MaterialIcons name="send" size={20} color={isValid ? '#fff' : c.placeholder} style={{ marginLeft: 3 }} />
+            </Pressable>
+          )}
         </View>
       </View>
 

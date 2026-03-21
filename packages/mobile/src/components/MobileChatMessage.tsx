@@ -2,8 +2,8 @@
 // Flavos IA 3.0 — MobileChatMessage Component
 // ===================================================
 
-import React, { useState, useRef } from 'react';
-import { View, Image, StyleSheet, Pressable, Linking, ScrollView } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Image, StyleSheet, Pressable, Linking, ScrollView, Animated } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -119,6 +119,20 @@ const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message }) => {
   const [showThoughts, setShowThoughts] = useState(false);
   const hasThoughts = !isUser && !!message.thoughts;
   const hasAttachments = !!(message.attachments?.length || message.attachmentsMeta?.length);
+
+  // Blinking cursor for streaming messages
+  const cursorOpacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!message.isStreaming) { cursorOpacity.setValue(1); return; }
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(cursorOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.timing(cursorOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [message.isStreaming]);
 
   function getMimeIconName(mimeType: string): keyof typeof MaterialIcons.glyphMap {
     if (mimeType.startsWith('image/')) return 'image';
@@ -289,15 +303,25 @@ const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message }) => {
             {message.content}
           </Text>
         ) : (
-          <Markdown 
-            style={mdStyles}
-            rules={{
-              fence: (node) => <MobileCodeBlock key={node.key} node={node} c={c} />,
-              code_block: (node) => <MobileCodeBlock key={node.key} node={node} c={c} />
-            }}
-          >
-            {message.content}
-          </Markdown>
+          <>
+            <Markdown 
+              style={mdStyles}
+              rules={{
+                fence: (node) => <MobileCodeBlock key={node.key} node={node} c={c} />,
+                code_block: (node) => <MobileCodeBlock key={node.key} node={node} c={c} />
+              }}
+            >
+              {message.content}
+            </Markdown>
+            {/* Blinking cursor while streaming */}
+            {message.isStreaming && (
+              <Animated.View style={{
+                width: 2, height: 18, marginLeft: 2, marginTop: 2,
+                backgroundColor: c.primary,
+                opacity: cursorOpacity,
+              }} />
+            )}
+          </>
         )}
 
         {/* ── Fontes do Google Search Grounding ── */}

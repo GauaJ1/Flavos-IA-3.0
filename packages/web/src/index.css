@@ -23,7 +23,18 @@ html, body, #root {
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* 
+  Transição suave de tema global para todos os elementos
+  Evitamos o uso de 'all' para melhor performance.
+  Limitamos a background, color, border e box-shadow.
+*/
+*, *::before, *::after {
+  transition: background-color 0.25s ease, 
+              color 0.25s ease, 
+              border-color 0.25s ease, 
+              box-shadow 0.25s ease;
 }
 
 /* ===================================================
