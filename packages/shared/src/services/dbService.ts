@@ -22,6 +22,9 @@ import {
   doc,
   setDoc,
   getDoc,
+  getDocs,
+  deleteDoc,
+  updateDoc,
   query,
   where,
   orderBy,
@@ -29,6 +32,7 @@ import {
   onSnapshot,
   writeBatch,
   serverTimestamp,
+  deleteField,
   Timestamp,
   type Unsubscribe,
 } from 'firebase/firestore';
@@ -119,6 +123,41 @@ export function listenConversations(
   });
 }
 
+/**
+ * Listener realtime da lixeira.
+ * Apenas conversas com status='trash', ordenadas por trashedAt desc.
+ */
+export function listenTrashedConversations(
+  owner: string,
+  onChange: (conversations: ConversationMeta[]) => void
+): Unsubscribe {
+  const q = query(
+    collection(db(), 'conversations'),
+    where('owner', '==', owner),
+    where('status', '==', 'trash'),
+    orderBy('trashedAt', 'desc'),
+    limit(50)
+  );
+
+  return onSnapshot(q, (snap) => {
+    const conversations: ConversationMeta[] = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id:             d.id,
+        title:          data.title          ?? 'Conversa',
+        lastMsgPreview: data.lastMsgPreview ?? '',
+        lastMsgRole:    (data.lastMsgRole   ?? 'user') as EntryRole,
+        lastMsgAt:      (data.lastMsgAt  as Timestamp)?.toMillis()  ?? Date.now(),
+        updatedAt:      (data.updatedAt  as Timestamp)?.toMillis()  ?? Date.now(),
+        trashedAt:      (data.trashedAt  as Timestamp)?.toMillis()  ?? Date.now(),
+        status:         data.status,
+        pinned:         data.pinned ?? false,
+      };
+    });
+    onChange(conversations);
+  });
+}
+
 // =====================================================
 // CONVERSATION CREATION
 // =====================================================
@@ -187,17 +226,19 @@ export function listenEntries(
   );
 
   return onSnapshot(q, (snap) => {
-    const messages: Message[] = snap.docs.map((d) => {
-      const data = d.data();
-      return {
-        id:              d.id,
-        role:            data.role,
-        content:         data.body,
-        timestamp:       (data.createdAt as Timestamp)?.toMillis() ?? Date.now(),
-        // Metadados leves de arquivo — nunca base64
-        ...(data.attachmentsMeta?.length && { attachmentsMeta: data.attachmentsMeta as AttachmentMeta[] }),
-      };
-    });
+    const messages: Message[] = snap.docs
+      .filter((d) => !d.data().superseded)   // ignora entries soft-deleted
+      .map((d) => {
+        const data = d.data();
+        return {
+          id:              d.id,
+          role:            data.role,
+          content:         data.body,
+          timestamp:       (data.createdAt as Timestamp)?.toMillis() ?? Date.now(),
+          // Metadados leves de arquivo — nunca base64
+          ...(data.attachmentsMeta?.length && { attachmentsMeta: data.attachmentsMeta as AttachmentMeta[] }),
+        };
+      });
     onChange(messages);
   });
 }
@@ -244,13 +285,101 @@ export async function saveEntryAndUpdateMeta(
 }
 
 // =====================================================
-// SOFT DELETE
+// TRASH — Sistema de Lixeira
 // =====================================================
 
 /**
- * Arquiva uma conversa (status → 'deleted'). Nunca apaga fisicamente.
+ * Move uma conversa para a lixeira.
+ * Não apaga fisicamente — define status='trash' e registra trashedAt.
+ * A conversa desaparece da sidebar principal e aparece na lixeira.
+ * Expira automaticamente após 4 dias via job backend.
  */
-export async function archiveConversation(conversationId: string): Promise<void> {
+export async function trashConversation(conversationId: string): Promise<void> {
   const ref = doc(db(), 'conversations', conversationId);
-  await setDoc(ref, { status: 'deleted', updatedAt: serverTimestamp() }, { merge: true });
+  await setDoc(ref, {
+    status: 'trash',
+    trashedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+/**
+ * Restaura uma conversa da lixeira para 'active'.
+ * Remove trashedAt com deleteField() para limpar o campo do Firestore.
+ */
+export async function restoreConversation(conversationId: string): Promise<void> {
+  const ref = doc(db(), 'conversations', conversationId);
+  await updateDoc(ref, {
+    status: 'active',
+    trashedAt: deleteField(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Hard delete: apaga fisicamente o documento da conversa.
+ *
+ * IMPORTANTE (segurança defensiva):
+ *   - Só funciona se a conversa já estiver com status='trash' (regra do Firestore).
+ *   - As entries da sub-coleção ficam como órfãs temporárias — NUNCA
+ *     tente lê-las sem antes verificar que o doc da conversa existe.
+ *   - O job backend (POST /api/admin/cleanup-trash) é responsável por
+ *     limpar as entries órfãs em segundo plano.
+ */
+export async function hardDeleteConversation(conversationId: string): Promise<void> {
+  const ref = doc(db(), 'conversations', conversationId);
+  await deleteDoc(ref);
+}
+
+/** @deprecated Use trashConversation */
+export { trashConversation as archiveConversation };
+/** @deprecated Use trashConversation */
+export { trashConversation as deleteConversation };
+
+// =====================================================
+// EDIÇÃO DE MENSAGEM — supersedEntriesFrom
+// =====================================================
+
+/**
+ * Marca como `superseded: true` todas as entries de uma conversa
+ * cujo timestamp (createdAt) seja >= fromTimestamp.
+ *
+ * Isso implementa o "soft-delete de entries" que permite editar mensagens:
+ *   1. Marca a entry editada e todas as posteriores como superseded.
+ *   2. O listener ignora entries superseded.
+ *   3. Novas entries (usuário + IA regenerada) são criadas normalmente.
+ *
+ * Segurança: a Firestore Rule só permite superseded → true (nunca false).
+ */
+export async function supersedEntriesFrom(
+  conversationId: string,
+  fromTimestamp: number
+): Promise<void> {
+  // Busca entries a partir do timestamp (inclusive)
+  const q = query(
+    collection(db(), 'conversations', conversationId, 'entries'),
+    where('createdAt', '>=', Timestamp.fromMillis(fromTimestamp)),
+    orderBy('createdAt', 'asc'),
+    limit(100)  // Segurança: nunca processa mais que 100 entries de uma vez
+  );
+
+  const snap = await getDocs(q);
+  if (snap.empty) return;
+
+  // Processa em lotes de 500 (limite do Firestore writeBatch)
+  const chunks: typeof snap.docs[] = [];
+  for (let i = 0; i < snap.docs.length; i += 500) {
+    chunks.push(snap.docs.slice(i, i + 500));
+  }
+
+  for (const chunk of chunks) {
+    const batch = writeBatch(db());
+    for (const d of chunk) {
+      // Só marca se ainda não estiver superseded (idempotente)
+      if (!d.data().superseded) {
+        batch.update(d.ref, { superseded: true });
+      }
+    }
+    await batch.commit();
+  }
 }

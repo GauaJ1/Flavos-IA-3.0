@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flavos Company — Projetos digitais, produtividade e IA</title>
+  <meta name="description" content="Flavos Company é uma marca focada em criar aplicações modernas, úteis e bem projetadas. Conheça Flavos Sync, Flavos Healthy e Flavos IA." />
+  <meta property="og:title" content="Flavos Company" />
+  <meta property="og:description" content="Projetos digitais, produtividade, saúde e inteligência artificial." />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    /* ══════════════════════════════════════════
+       DESIGN TOKENS
+    ══════════════════════════════════════════ */
+    :root {
+      /* Backgrounds */
+      --bg-0: #080c12;
+      --bg-1: #0b0f17;
+      --bg-2: #0f1520;
+      --bg-3: #111827;
+      --bg-4: #161d2d;
+
+      /* Brand Green */
+      --g5:  #16a34a;
+      --g4:  #22c55e;
+      --g3:  #34d399;
+      --g2:  #6ee7b7;
+      --g1:  #a7f3d0;
+
+      /* Brand Cyan / Blue */
+      --c5:  #0e7490;
+      --c4:  #06b6d4;
+      --c3:  #38bdf8;
+      --c2:  #7dd3fc;
+      --b4:  #3b82f6;
+
+      /* Text */
+      --t1: #f8fafc;
+      --t2: #94a3b8;
+      --t3: #475569;
+      --t4: #1e293b;
+
+      /* UI */
+      --border:       rgba(255,255,255,.06);
+      --border-m:     rgba(255,255,255,.10);
+      --border-g:     rgba(34,197,94,.20);
+      --border-c:     rgba(56,189,248,.18);
+
+      --shadow-card:  0 0 0 1px var(--border), 0 8px 32px rgba(0,0,0,.5);
+      --shadow-up:    0 0 0 1px var(--border-m), 0 24px 64px rgba(0,0,0,.65);
+
+      --r-card: 20px;
+      --r-btn:  11px;
+      --ease:   cubic-bezier(.22,.68,0,1.2);
+      --ease-s: cubic-bezier(.4,0,.2,1);
+      --dur:    .32s;
+    }
+
+    /* ══════════════════════════════════════════
+       RESET
+    ══════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-0);
+      color: var(--t1);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    img  { display: block; max-width: 100%; }
+    a    { color: inherit; text-decoration: none; }
+    svg  { flex-shrink: 0; }
+
+    /* ══════════════════════════════════════════
+       ANIMATED BACKGROUND CANVAS
+    ══════════════════════════════════════════ */
+    #bg-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ══════════════════════════════════════════
+       NAV
+    ══════════════════════════════════════════ */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 200;
+      height: 66px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 clamp(1.5rem, 5vw, 4rem);
+      transition: background var(--dur) var(--ease-s),
+                  border-color var(--dur) var(--ease-s),
+                  box-shadow var(--dur) var(--ease-s);
+      border-bottom: 1px solid transparent;
+    }
+    nav.scrolled {
+      background: rgba(8,12,18,.82);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      border-color: var(--border);
+      box-shadow: 0 4px 40px rgba(0,0,0,.55);
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: .65rem;
+    }
+    .nav-logo-mark {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      overflow: hidden;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 12px rgba(0,0,0,.4);
+      transition: box-shadow .3s ease, transform .3s ease;
+    }
+    .nav-logo-mark:hover {
+      box-shadow: 0 4px 20px rgba(34,197,94,.22);
+      transform: scale(1.07);
+    }
+
+    .nav-brand-name {
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: -.025em;
+      background: linear-gradient(120deg, var(--g3) 20%, var(--c3) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    /* Hero logo block */
+    .hero-logo {
+      width: clamp(110px, 18vw, 160px);
+      margin-bottom: 1.75rem;
+      opacity: 0;
+      transform: translateY(-20px);
+      animation: heroIn .8s 0s var(--ease) forwards;
+    }
+    .hero-logo img {
+      width: 100%;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+      border-radius: 18px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.07);
+      transition: transform .4s cubic-bezier(.22,.68,0,1.2), box-shadow .4s ease;
+    }
+    .hero-logo img:hover {
+      transform: scale(1.03);
+      box-shadow: 0 14px 56px rgba(34,197,94,.18), 0 0 0 1px rgba(34,197,94,.15);
+    }
+    .nav-links {
+      display: flex;
+      gap: 2.5rem;
+      list-style: none;
+    }
+    .nav-links a {
+      font-size: .875rem;
+      font-weight: 500;
+      color: var(--t2);
+      transition: color var(--dur) var(--ease-s);
+      position: relative;
+    }
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: -4px; left: 0;
+      width: 0; height: 1.5px;
+      background: var(--g4);
+      border-radius: 2px;
+      transition: width var(--dur) var(--ease-s);
+    }
+    .nav-links a:hover { color: var(--t1); }
+    .nav-links a:hover::after { width: 100%; }
+
+    .nav-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .45rem 1.1rem;
+      background: var(--g4);
+      color: #fff;
+      font-size: .82rem;
+      font-weight: 700;
+      border-radius: var(--r-btn);
+      border: none;
+      cursor: pointer;
+      transition: filter var(--dur) var(--ease-s), transform var(--dur) var(--ease-s);
+      letter-spacing: -.01em;
+    }
+    .nav-cta:hover { filter: brightness(1.12); transform: translateY(-1px); }
+
+    /* ══════════════════════════════════════════
+       HERO
+    ══════════════════════════════════════════ */
+    .hero {
+      position: relative;
+      z-index: 10;
+      min-height: 100svh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 7rem clamp(1.5rem, 6vw, 5rem) 5rem;
+      overflow: hidden;
+    }
+
+    /* Grid mesh overlay */
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(34,197,94,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34,197,94,.04) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 30%, transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 30%, transparent 100%);
+    }
+
+    /* Glowing orbs in hero */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      will-change: transform;
+    }
+    .orb-1 {
+      width: 720px; height: 440px;
+      top: -80px; left: 50%; transform: translateX(-55%);
+      background: radial-gradient(ellipse, rgba(34,197,94,.13) 0%, transparent 68%);
+      filter: blur(60px);
+      animation: orbFloat1 14s ease-in-out infinite alternate;
+    }
+    .orb-2 {
+      width: 500px; height: 400px;
+      bottom: -60px; right: -80px;
+      background: radial-gradient(ellipse, rgba(56,189,248,.09) 0%, transparent 68%);
+      filter: blur(70px);
+      animation: orbFloat2 18s ease-in-out infinite alternate;
+    }
+    .orb-3 {
+      width: 300px; height: 300px;
+      top: 30%; left: -80px;
+      background: radial-gradient(ellipse, rgba(6,182,212,.06) 0%, transparent 70%);
+      filter: blur(60px);
+      animation: orbFloat1 22s ease-in-out infinite alternate-reverse;
+    }
+
+    @keyframes orbFloat1 {
+      from { transform: translateX(-55%) translateY(0); }
+      to   { transform: translateX(-50%) translateY(-30px); }
+    }
+    @keyframes orbFloat2 {
+      from { transform: translateY(0); }
+      to   { transform: translateY(-40px) translateX(-20px); }
+    }
+
+    /* Hero badge */
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .32rem .9rem;
+      border-radius: 999px;
+      border: 1px solid rgba(34,197,94,.25);
+      background: rgba(34,197,94,.07);
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--g3);
+      margin-bottom: 2.25rem;
+
+      opacity: 0;
+      transform: translateY(-18px);
+      animation: heroIn .7s .1s var(--ease) forwards;
+    }
+    .hero-badge-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--g4);
+      animation: pulseDot 2s ease infinite;
+    }
+
+    .hero-title {
+      font-size: clamp(3rem, 9vw, 6.5rem);
+      font-weight: 900;
+      letter-spacing: -.05em;
+      line-height: 1.0;
+      margin-bottom: 1.35rem;
+
+      opacity: 0;
+      transform: translateY(-24px);
+      animation: heroIn .75s .22s var(--ease) forwards;
+    }
+    .hero-title .word-light {
+      color: var(--t1);
+    }
+    .hero-title .word-grad {
+      background: linear-gradient(135deg, var(--g3) 0%, var(--g4) 40%, var(--c4) 80%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      font-size: clamp(1rem, 2.5vw, 1.3rem);
+      font-weight: 600;
+      color: var(--t2);
+      max-width: 600px;
+      line-height: 1.55;
+      margin-bottom: 1.1rem;
+
+      opacity: 0;
+      transform: translateY(-20px);
+      animation: heroIn .7s .35s var(--ease) forwards;
+    }
+
+    .hero-desc {
+      font-size: clamp(.88rem, 1.7vw, 1.05rem);
+      color: var(--t3);
+      max-width: 500px;
+      line-height: 1.8;
+      margin-bottom: 2.75rem;
+
+      opacity: 0;
+      transform: translateY(-16px);
+      animation: heroIn .7s .46s var(--ease) forwards;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+
+      opacity: 0;
+      transform: translateY(-14px);
+      animation: heroIn .7s .58s var(--ease) forwards;
+    }
+
+    /* Scroll indicator */
+    .hero-scroll {
+      position: absolute;
+      bottom: 2.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .4rem;
+      color: var(--t3);
+      font-size: .72rem;
+      font-weight: 500;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      opacity: 0;
+      animation: heroIn .6s 1.1s var(--ease) forwards;
+    }
+    .scroll-line {
+      width: 1px; height: 36px;
+      background: linear-gradient(to bottom, var(--g4), transparent);
+      animation: scrollLine 2s ease infinite;
+    }
+    @keyframes scrollLine {
+      0%   { transform: scaleY(0); transform-origin: top; }
+      50%  { transform: scaleY(1); transform-origin: top; }
+      51%  { transform: scaleY(1); transform-origin: bottom; }
+      100% { transform: scaleY(0); transform-origin: bottom; }
+    }
+
+    @keyframes heroIn {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ══════════════════════════════════════════
+       BUTTONS
+    ══════════════════════════════════════════ */
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .9rem 2.1rem;
+      background: linear-gradient(135deg, var(--g5) 0%, var(--g4) 50%, var(--c5) 100%);
+      color: #fff;
+      font-weight: 700;
+      font-size: .97rem;
+      border-radius: var(--r-btn);
+      border: none;
+      cursor: pointer;
+      letter-spacing: -.01em;
+      box-shadow: 0 4px 24px rgba(34,197,94,.32), 0 1px 0 rgba(255,255,255,.08) inset;
+      transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease), filter var(--dur) var(--ease-s);
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,.12) 0%, transparent 100%);
+      opacity: 0;
+      transition: opacity var(--dur) var(--ease-s);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 36px rgba(34,197,94,.45), 0 1px 0 rgba(255,255,255,.08) inset;
+      filter: brightness(1.08);
+    }
+    .btn-primary:hover::before { opacity: 1; }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .9rem 2.1rem;
+      background: transparent;
+      color: var(--t2);
+      font-weight: 600;
+      font-size: .97rem;
+      border-radius: var(--r-btn);
+      border: 1.5px solid var(--border-m);
+      cursor: pointer;
+      letter-spacing: -.01em;
+      transition: background var(--dur) var(--ease-s), border-color var(--dur) var(--ease-s), color var(--dur) var(--ease-s), transform var(--dur) var(--ease);
+    }
+    .btn-ghost:hover {
+      background: rgba(255,255,255,.04);
+      border-color: rgba(255,255,255,.18);
+      color: var(--t1);
+      transform: translateY(-1px);
+    }
+
+    /* Card access buttons */
+    .btn-access {
+      display: inline-flex;
+      align-items: center;
+      gap: .45rem;
+      padding: .62rem 1.4rem;
+      border-radius: var(--r-btn);
+      font-size: .875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background var(--dur) var(--ease-s), border-color var(--dur) var(--ease-s), color var(--dur) var(--ease-s), transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease-s);
+      border: 1.5px solid transparent;
+    }
+    .btn-access-green {
+      background: rgba(34,197,94,.1);
+      border-color: rgba(34,197,94,.25);
+      color: var(--g3);
+    }
+    .btn-access-green:hover {
+      background: rgba(34,197,94,.18);
+      border-color: rgba(34,197,94,.45);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(34,197,94,.18);
+    }
+    .btn-access-cyan {
+      background: rgba(56,189,248,.08);
+      border-color: rgba(56,189,248,.22);
+      color: var(--c3);
+    }
+    .btn-access-cyan:hover {
+      background: rgba(56,189,248,.16);
+      border-color: rgba(56,189,248,.42);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(56,189,248,.18);
+    }
+    .btn-access-disabled {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--t3);
+      cursor: not-allowed;
+      opacity: .5;
+    }
+
+    /* ══════════════════════════════════════════
+       LAYOUT HELPERS
+    ══════════════════════════════════════════ */
+    .container {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 0 clamp(1.5rem, 5vw, 3.5rem);
+    }
+    section { position: relative; z-index: 10; }
+    section:not(.hero) { padding: clamp(5rem, 9vw, 8rem) clamp(1.5rem, 5vw, 3.5rem); }
+
+    .sec-label {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--g4);
+      margin-bottom: .85rem;
+    }
+    .sec-label::before {
+      content: '';
+      display: block;
+      width: 20px; height: 2px;
+      background: var(--g4);
+      border-radius: 2px;
+    }
+    .sec-title {
+      font-size: clamp(1.8rem, 4.5vw, 2.85rem);
+      font-weight: 900;
+      letter-spacing: -.04em;
+      line-height: 1.1;
+      margin-bottom: 1.35rem;
+    }
+    .sec-lead {
+      font-size: clamp(.9rem, 1.8vw, 1.08rem);
+      color: var(--t2);
+      line-height: 1.8;
+      max-width: 580px;
+    }
+
+    /* ══════════════════════════════════════════
+       DIVIDER
+    ══════════════════════════════════════════ */
+    .divider-line {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border) 30%, var(--border) 70%, transparent);
+      margin: 0 clamp(1.5rem, 5vw, 3.5rem);
+    }
+
+    /* ══════════════════════════════════════════
+       ABOUT
+    ══════════════════════════════════════════ */
+    #sobre { background: var(--bg-1); }
+    .about-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5rem;
+      align-items: center;
+      max-width: 1160px;
+      margin: 0 auto;
+    }
+
+    .pillar-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .pillar {
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      transition: border-color var(--dur) var(--ease-s),
+                  transform var(--dur) var(--ease),
+                  box-shadow var(--dur) var(--ease-s);
+    }
+    .pillar:hover {
+      border-color: rgba(34,197,94,.22);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0,0,0,.4);
+    }
+    .pillar-icon {
+      width: 38px; height: 38px;
+      border-radius: 10px;
+      background: rgba(34,197,94,.1);
+      border: 1px solid rgba(34,197,94,.18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--g3);
+      margin-bottom: .85rem;
+    }
+    .pillar h4 {
+      font-size: .92rem;
+      font-weight: 700;
+      color: var(--t1);
+      margin-bottom: .3rem;
+      letter-spacing: -.01em;
+    }
+    .pillar p {
+      font-size: .8rem;
+      color: var(--t3);
+      line-height: 1.55;
+    }
+
+    /* ══════════════════════════════════════════
+       STATS BAR
+    ══════════════════════════════════════════ */
+    .stats-bar {
+      display: flex;
+      gap: 3rem;
+      margin-top: 2.5rem;
+      flex-wrap: wrap;
+    }
+    .stat-item { display: flex; flex-direction: column; }
+    .stat-num {
+      font-size: 2rem;
+      font-weight: 900;
+      letter-spacing: -.04em;
+      background: linear-gradient(135deg, var(--g3), var(--c3));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+      margin-bottom: .2rem;
+    }
+    .stat-label {
+      font-size: .78rem;
+      color: var(--t3);
+      font-weight: 500;
+    }
+
+    /* ══════════════════════════════════════════
+       APPS
+    ══════════════════════════════════════════ */
+    #aplicacoes { background: var(--bg-0); }
+    .apps-inner { max-width: 1160px; margin: 0 auto; }
+    .apps-header { margin-bottom: 3.5rem; }
+
+    .apps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      perspective: 1200px;
+    }
+
+    /* ── CARD ── */
+    .app-card {
+      position: relative;
+      background: var(--bg-3);
+      border-radius: var(--r-card);
+      border: 1px solid var(--border);
+      padding: 2.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.35rem;
+      cursor: default;
+      will-change: transform;
+      transition: box-shadow var(--dur) var(--ease-s),
+                  border-color var(--dur) var(--ease-s);
+      transform-style: preserve-3d;
+    }
+    /* Top accent line */
+    .app-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 1.5rem; right: 1.5rem;
+      height: 1px;
+      border-radius: 999px;
+      background: var(--card-line, transparent);
+      opacity: .9;
+      transition: opacity var(--dur) var(--ease-s);
+    }
+    /* Hover glow layer */
+    .app-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: var(--card-glow, transparent);
+      opacity: 0;
+      transition: opacity var(--dur) var(--ease-s);
+    }
+    .app-card:hover { box-shadow: var(--shadow-up); }
+    .app-card:hover::after { opacity: 1; }
+
+    /* Per-card accent variables */
+    .card-sync {
+      --card-line: linear-gradient(90deg, var(--c4), var(--g4));
+      --card-glow: radial-gradient(circle at 60% 0%, rgba(56,189,248,.055) 0%, transparent 60%);
+    }
+    .card-sync:hover { border-color: rgba(56,189,248,.22); }
+
+    .card-healthy {
+      --card-line: linear-gradient(90deg, var(--g4), var(--g3));
+      --card-glow: radial-gradient(circle at 60% 0%, rgba(34,197,94,.06) 0%, transparent 60%);
+    }
+    .card-healthy:hover { border-color: rgba(34,197,94,.22); }
+
+    .card-ia {
+      --card-line: linear-gradient(90deg, var(--c5), var(--c3));
+      --card-glow: radial-gradient(circle at 60% 0%, rgba(6,182,212,.06) 0%, transparent 60%);
+      border-color: rgba(6,182,212,.12);
+    }
+    .card-ia:hover { border-color: rgba(56,189,248,.24); }
+
+    /* Card inner elements */
+    .card-logo {
+      width: 62px; height: 62px;
+      border-radius: 15px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border-m);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .card-logo img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      border-radius: 13px;
+    }
+
+    /* Placeholder for future logo */
+    .card-logo-ph {
+      width: 62px; height: 62px;
+      border-radius: 15px;
+      background: rgba(6,182,212,.06);
+      border: 1.5px dashed rgba(6,182,212,.28);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(56,189,248,.4);
+      font-size: .62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      text-align: center;
+      line-height: 1.3;
+      padding: .25rem;
+      position: relative;
+      z-index: 1;
+      flex-shrink: 0;
+    }
+
+    .card-body {
+      display: flex;
+      flex-direction: column;
+      gap: .55rem;
+      flex: 1;
+      position: relative;
+      z-index: 1;
+    }
+    .card-name {
+      font-size: 1.22rem;
+      font-weight: 800;
+      letter-spacing: -.03em;
+      color: var(--t1);
+    }
+    .card-desc {
+      font-size: .875rem;
+      color: var(--t2);
+      line-height: 1.68;
+    }
+    .card-footer {
+      display: flex;
+      align-items: center;
+      gap: .85rem;
+      flex-wrap: wrap;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* WIP Badge */
+    .badge-wip {
+      display: inline-flex;
+      align-items: center;
+      gap: .38rem;
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      padding: .28rem .75rem;
+      border-radius: 999px;
+      color: var(--c3);
+      background: rgba(56,189,248,.08);
+      border: 1px solid rgba(56,189,248,.22);
+      white-space: nowrap;
+    }
+    .badge-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--c3);
+      animation: pulseDot 1.8s ease infinite;
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%  { opacity: .35; transform: scale(.6); }
+    }
+
+    /* ══════════════════════════════════════════
+       FOOTER
+    ══════════════════════════════════════════ */
+    footer {
+      position: relative;
+      z-index: 10;
+      background: var(--bg-1);
+      border-top: 1px solid var(--border);
+      padding: 3.5rem clamp(1.5rem, 5vw, 3.5rem);
+    }
+    .footer-inner {
+      max-width: 1160px;
+      margin: 0 auto;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    .footer-brand {
+      display: flex;
+      flex-direction: column;
+      gap: .6rem;
+    }
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+    }
+    .footer-logo-mark {
+      width: 28px; height: 28px;
+      border-radius: 7px;
+      background: linear-gradient(135deg, var(--g4), var(--c4));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .footer-name {
+      font-size: 1rem;
+      font-weight: 800;
+      background: linear-gradient(120deg, var(--g3), var(--c3));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .footer-tag {
+      font-size: .83rem;
+      color: var(--t3);
+      max-width: 280px;
+      line-height: 1.5;
+    }
+    .footer-contact {
+      display: flex;
+      flex-direction: column;
+      gap: .4rem;
+      text-align: right;
+    }
+    .footer-contact-label {
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--t3);
+    }
+    .footer-contact a {
+      font-size: .92rem;
+      font-weight: 500;
+      color: var(--g4);
+      transition: color var(--dur) var(--ease-s);
+    }
+    .footer-contact a:hover { color: var(--c3); }
+    .footer-copy {
+      max-width: 1160px;
+      margin: 2rem auto 0;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: .75rem;
+      color: var(--t3);
+      text-align: center;
+    }
+
+    /* ══════════════════════════════════════════
+       SCROLL REVEAL
+    ══════════════════════════════════════════ */
+    .sr {
+      opacity: 0;
+      transform: translateY(32px);
+      transition: opacity .65s var(--ease-s), transform .65s var(--ease);
+    }
+    .sr.in { opacity: 1; transform: none; }
+    .sr-d1 { transition-delay: .06s; }
+    .sr-d2 { transition-delay: .13s; }
+    .sr-d3 { transition-delay: .20s; }
+    .sr-d4 { transition-delay: .27s; }
+
+    /* ══════════════════════════════════════════
+       RESPONSIVE
+    ══════════════════════════════════════════ */
+    @media (max-width: 1024px) {
+      .apps-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 768px) {
+      .nav-links, .nav-cta { display: none; }
+      .about-inner { grid-template-columns: 1fr; gap: 3rem; }
+      .pillar-grid { grid-template-columns: 1fr 1fr; }
+      .apps-grid { grid-template-columns: 1fr; }
+      .footer-contact { text-align: left; }
+      .stats-bar { gap: 2rem; }
+    }
+    @media (max-width: 480px) {
+      .pillar-grid { grid-template-columns: 1fr; }
+      .hero-actions { flex-direction: column; gap: .75rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background canvas -->
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+  <!-- ══════ NAV ══════ -->
+  <nav id="nav">
+    <div class="nav-brand">
+      <div class="nav-logo-mark">
+        <!--
+          NAV LOGO — mostra apenas o símbolo "F" (porção superior da logo)
+          Para substituir no futuro: troque o src abaixo.
+          Se preferir usar uma versão transparente da logo, remova a classe logo-dark.
+        -->
+        <img
+          src="./flavos-company.png"
+          alt="Flavos Company"
+          style="width:72px;height:72px;object-fit:cover;object-position:50% 28%;border-radius:8px;"
+        />
+      </div>
+      <span class="nav-brand-name">Flavos Company</span>
+    </div>
+    <ul class="nav-links">
+      <li><a href="#inicio">Início</a></li>
+      <li><a href="#sobre">Sobre</a></li>
+      <li><a href="#aplicacoes">Aplicações</a></li>
+    </ul>
+    <a href="#aplicacoes" class="nav-cta">
+      Ver aplicações
+    </a>
+  </nav>
+
+  <!-- ══════ HERO ══════ -->
+  <section id="inicio" class="hero">
+    <div class="hero-grid" aria-hidden="true"></div>
+    <div class="orb orb-1" aria-hidden="true"></div>
+    <div class="orb orb-2" aria-hidden="true"></div>
+    <div class="orb orb-3" aria-hidden="true"></div>
+
+    <!--
+      HERO LOGO — logo oficial da Flavos Company
+      Para substituir: mude o src abaixo.
+      Para remover o filtro (se usar PNG transparente): remova a classe logo-dark do img.
+    -->
+    <div class="hero-logo">
+      <img
+        src="./flavos-company.png"
+        alt="Flavos Company logo"
+        draggable="false"
+      />
+    </div>
+
+    <div class="hero-badge">
+      <span class="hero-badge-dot"></span>
+      Plataforma de produtos digitais
+    </div>
+
+    <h1 class="hero-title">
+      <span class="word-light">Flavos</span><br />
+      <span class="word-grad">Company</span>
+    </h1>
+
+    <p class="hero-sub">
+      Projetos digitais, produtividade, saúde e inteligência artificial.
+    </p>
+
+    <p class="hero-desc">
+      Construímos ferramentas modernas, úteis e bem projetadas para simplificar o cotidiano e impulsionar o que importa.
+    </p>
+
+    <div class="hero-actions">
+      <a href="#aplicacoes" class="btn-primary" id="hero-cta">
+        Ver aplicações
+        <!-- ArrowDown -->
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+      </a>
+      <a href="#sobre" class="btn-ghost" id="hero-about">
+        Saiba mais
+      </a>
+    </div>
+
+    <div class="hero-scroll" aria-hidden="true">
+      <span class="scroll-line"></span>
+      Scroll
+    </div>
+  </section>
+
+  <!-- ══════ ABOUT ══════ -->
+  <section id="sobre">
+    <div class="about-inner">
+      <!-- Text -->
+      <div>
+        <p class="sec-label sr">Sobre a marca</p>
+        <h2 class="sec-title sr sr-d1">
+          Construindo o futuro<br />um produto por vez.
+        </h2>
+        <p class="sec-lead sr sr-d2">
+          A Flavos Company nasce da crença de que tecnologia bem aplicada transforma hábitos, melhora vidas e cria valor real. Desenvolvemos interfaces limpas, sistemas eficientes e experiências que as pessoas querem usar.
+        </p>
+        <p class="sec-lead sr sr-d3" style="margin-top:.9rem;">
+          Cada produto é pensado com atenção ao detalhe, foco no usuário e visão de longo prazo — do design ao código.
+        </p>
+        <div class="stats-bar sr sr-d4">
+          <div class="stat-item">
+            <span class="stat-num">3+</span>
+            <span class="stat-label">Aplicações ativas</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-num">100%</span>
+            <span class="stat-label">Foco no produto</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-num">∞</span>
+            <span class="stat-label">Potencial de escala</span>
+          </div>
+        </div>
+      </div>
+      <!-- Pillars -->
+      <div class="pillar-grid">
+        <div class="pillar sr sr-d1">
+          <div class="pillar-icon">
+            <!-- Zap -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <h4>Inovação</h4>
+          <p>Soluções modernas que acompanham o ritmo da tecnologia.</p>
+        </div>
+        <div class="pillar sr sr-d2">
+          <div class="pillar-icon">
+            <!-- Target -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+          </div>
+          <h4>Utilidade</h4>
+          <p>Produtos que resolvem problemas reais do cotidiano.</p>
+        </div>
+        <div class="pillar sr sr-d3">
+          <div class="pillar-icon">
+            <!-- Layers -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          </div>
+          <h4>Design</h4>
+          <p>Interfaces limpas, elegantes e altamente funcionais.</p>
+        </div>
+        <div class="pillar sr sr-d4">
+          <div class="pillar-icon">
+            <!-- Box -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          </div>
+          <h4>Produto</h4>
+          <p>Construção com foco em qualidade e escala.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider-line"></div>
+
+  <!-- ══════ APPS ══════ -->
+  <section id="aplicacoes">
+    <div class="apps-inner">
+      <div class="apps-header">
+        <p class="sec-label sr">Nossas aplicações</p>
+        <h2 class="sec-title sr sr-d1">
+          Ferramentas que fazem<br />a diferença.
+        </h2>
+      </div>
+
+      <div class="apps-grid">
+
+        <!-- Flavos Sync -->
+        <article class="app-card card-sync sr sr-d1" id="card-sync" aria-label="Flavos Sync">
+          <div class="card-logo">
+            <img src="./flavos512.png" alt="Logo Flavos Sync" loading="lazy" />
+          </div>
+          <div class="card-body">
+            <h3 class="card-name">Flavos Sync</h3>
+            <p class="card-desc">
+              Aplicação voltada para rotina, organização e produtividade. Gerencie tarefas, hábitos e tempo com clareza total.
+            </p>
+          </div>
+          <div class="card-footer">
+            <a href="https://flavos-rotina.vercel.app/" target="_blank" rel="noopener noreferrer" class="btn-access btn-access-cyan" id="btn-sync">
+              Acessar
+              <!-- ExternalLink -->
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </a>
+          </div>
+        </article>
+
+        <!-- Flavos Healthy -->
+        <article class="app-card card-healthy sr sr-d2" id="card-healthy" aria-label="Flavos Healthy">
+          <div class="card-logo">
+            <img src="./logo.png" alt="Logo Flavos Healthy" loading="lazy" />
+          </div>
+          <div class="card-body">
+            <h3 class="card-name">Flavos Healthy</h3>
+            <p class="card-desc">
+              Aplicação focada em saúde, bem-estar e acompanhamento pessoal. Cuide de si com dados, consistência e propósito.
+            </p>
+          </div>
+          <div class="card-footer">
+            <a href="https://flavos-healhy.vercel.app/" target="_blank" rel="noopener noreferrer" class="btn-access btn-access-green" id="btn-healthy">
+              Acessar
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </a>
+          </div>
+        </article>
+
+        <!--
+          ╔═══════════════════════════════════════════╗
+          ║  FLAVOS IA — ESPAÇO RESERVADO             ║
+          ║  Para atualizar futuramente:              ║
+          ║  1. Trocar .card-logo-ph por img real     ║
+          ║  2. Atualizar card-desc com texto final   ║
+          ║  3. Trocar .btn-access-disabled por link  ║
+          ╚═══════════════════════════════════════════╝
+        -->
+        <article class="app-card card-ia sr sr-d3" id="card-ia" aria-label="Flavos IA — em desenvolvimento">
+          <div class="card-logo">
+            <!-- [LOGO] Substitua por logo final quando disponível -->
+            <img src="./Flavos_3.png" alt="Logo Flavos IA" loading="lazy" />
+          </div>
+          <div class="card-body">
+            <h3 class="card-name">Flavos IA</h3>
+            <!-- [DESCRIÇÃO FINAL] Atualize este texto quando o produto for lançado -->
+            <p class="card-desc">
+              Plataforma de inteligência artificial da Flavos Company. Recursos avançados de IA integrados ao ecossistema da marca.
+            </p>
+          </div>
+          <div class="card-footer">
+            <span class="badge-wip">
+              <span class="badge-dot"></span>
+              Em desenvolvimento
+            </span>
+            <!-- [BOTÃO FUTURO] Substitua por btn-access com href quando pronto -->
+            <span class="btn-access btn-access-disabled" aria-disabled="true">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Em breve
+            </span>
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════ FOOTER ══════ -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <div class="footer-logo">
+          <div class="footer-logo-mark">
+        <img
+          src="./flavos-company.png"
+          alt=""
+          aria-hidden="true"
+          style="width:56px;height:56px;object-fit:cover;object-position:50% 28%;border-radius:7px;"
+        />
+      </div>
+          <span class="footer-name">Flavos Company</span>
+        </div>
+        <p class="footer-tag">Construindo experiências digitais modernas.</p>
+      </div>
+      <div class="footer-contact">
+        <span class="footer-contact-label">Contato</span>
+        <a href="mailto:contato@flavoscompany.xyz">contato@flavoscompany.xyz</a>
+      </div>
+    </div>
+    <p class="footer-copy">
+      &copy; <span id="year"></span> Flavos Company — Todos os direitos reservados.
+    </p>
+  </footer>
+
+  <!-- ══════ SCRIPTS ══════ -->
+  <script>
+    /* ── Year ── */
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    /* ── Animated background canvas (floating particles) ── */
+    (function () {
+      const canvas = document.getElementById('bg-canvas');
+      const ctx = canvas.getContext('2d');
+      let W, H, particles;
+
+      const COLORS = ['rgba(34,197,94,', 'rgba(56,189,248,', 'rgba(6,182,212,'];
+
+      function resize() {
+        W = canvas.width  = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+      }
+
+      function initParticles() {
+        particles = Array.from({ length: 38 }, () => ({
+          x: Math.random() * W,
+          y: Math.random() * H,
+          r: Math.random() * 2.2 + .6,
+          vx: (Math.random() - .5) * .22,
+          vy: (Math.random() - .5) * .22,
+          color: COLORS[Math.floor(Math.random() * COLORS.length)],
+          alpha: Math.random() * .25 + .06,
+        }));
+      }
+
+      function tick() {
+        ctx.clearRect(0, 0, W, H);
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          if (p.x < -10) p.x = W + 10;
+          if (p.x > W + 10) p.x = -10;
+          if (p.y < -10) p.y = H + 10;
+          if (p.y > H + 10) p.y = -10;
+
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = p.color + p.alpha + ')';
+          ctx.fill();
+        });
+        requestAnimationFrame(tick);
+      }
+
+      resize();
+      initParticles();
+      tick();
+      window.addEventListener('resize', () => { resize(); initParticles(); });
+    })();
+
+    /* ── Nav scroll effect ── */
+    const nav = document.getElementById('nav');
+    window.addEventListener('scroll', () => {
+      nav.classList.toggle('scrolled', window.scrollY > 20);
+    }, { passive: true });
+
+    /* ── Scroll Reveal ── */
+    const srObserver = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) { e.target.classList.add('in'); srObserver.unobserve(e.target); }
+      });
+    }, { threshold: 0.10 });
+    document.querySelectorAll('.sr').forEach(el => srObserver.observe(el));
+
+    /* ── 3D card tilt on mouse move ── */
+    document.querySelectorAll('.app-card').forEach(card => {
+      const MAX = 8; // max tilt degrees
+
+      card.addEventListener('mousemove', e => {
+        const rect = card.getBoundingClientRect();
+        const cx = rect.left + rect.width  / 2;
+        const cy = rect.top  + rect.height / 2;
+        const dx = (e.clientX - cx) / (rect.width  / 2);
+        const dy = (e.clientY - cy) / (rect.height / 2);
+
+        const rotX = -dy * MAX;
+        const rotY =  dx * MAX;
+
+        card.style.transform = `perspective(900px) rotateX(${rotX}deg) rotateY(${rotY}deg) translateY(-6px)`;
+        card.style.transition = 'transform .08s linear, box-shadow .32s, border-color .32s';
+      });
+
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = '';
+        card.style.transition = 'transform .55s cubic-bezier(.22,.68,0,1.2), box-shadow .32s, border-color .32s';
+      });
+    });
+  </script>
+</body>
+</html>

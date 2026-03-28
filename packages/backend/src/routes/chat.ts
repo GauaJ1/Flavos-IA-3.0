@@ -198,14 +198,51 @@ Você está falando com o ${userName || 'Usuário'}`;
       return;
     }
 
+    // ── Classify Gemini/Google API errors ─────────────────
+    const errStatus = error?.status ?? error?.code ?? 0;
+    const errMsg    = String(error?.message ?? '');
+    const is429     = errStatus === 429 || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota');
+    const is5xx     = errStatus >= 500 || errMsg.includes('INTERNAL');
+    const isAuth    = errStatus === 401 || errStatus === 403 || errMsg.includes('API key');
+
+    // Extract retryDelay from Gemini error details JSON
+    let retryAfter = 30;
+    try {
+      const jsonStart = errMsg.indexOf('{');
+      if (jsonStart !== -1) {
+        const raw = JSON.parse(errMsg.slice(jsonStart));
+        const details: any[] = raw?.error?.details ?? [];
+        const retryInfo = details.find((d: any) => String(d['@type']).includes('RetryInfo'));
+        if (retryInfo?.retryDelay) {
+          const secs = parseInt(String(retryInfo.retryDelay).replace('s', ''), 10);
+          if (!isNaN(secs)) retryAfter = secs;
+        }
+      }
+    } catch { /* ignore */ }
+
     audit('gemini_error', {
-      uid: req.uid, route: req.path, ip, status: 500,
-      detail: error?.message ?? 'Unknown error',
+      uid: req.uid, route: req.path, ip,
+      status: is429 ? 429 : 500,
+      detail: is429 ? `quota_exceeded retryAfter=${retryAfter}` : errMsg.slice(0, 200),
     });
-    console.error('❌ Erro no stream:', error?.message || error);
+    console.error('❌ Erro no stream:', is429 ? `429 retryAfter=${retryAfter}s` : errMsg.slice(0, 120));
+
+    // HTTP 429 before any bytes sent → full HTTP response (XHR detects status)
+    if (is429 && !res.headersSent) {
+      res.status(429).setHeader('Retry-After', String(retryAfter))
+         .json({ error: 'rate_limit', retryAfter });
+      return;
+    }
 
     if (!res.writableEnded) {
-      res.write(`data: ${JSON.stringify({ error: error.message || 'Erro interno.' })}\n\n`);
+      const friendly = is429
+        ? `__rate_limit__:${retryAfter}`
+        : isAuth
+          ? 'Sessão expirada ou sem permissão. Faça login novamente.'
+          : is5xx
+            ? 'O servidor da IA encontrou um problema interno. Tente novamente.'
+            : 'Não foi possível gerar a resposta no momento. Tente novamente.';
+      res.write(`data: ${JSON.stringify({ error: friendly })}\n\n`);
     }
   } finally {
     if (!res.writableEnded) res.end();

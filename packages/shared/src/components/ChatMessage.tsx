@@ -36,6 +36,7 @@ function annotateWithSources(
 // Renderizador customizado para Blocos de Código (Web)
 const WebCodeBlock = ({ inline, className, children, colors }: any) => {
   const [copied, setCopied] = React.useState(false);
+  const [isMinimized, setIsMinimized] = React.useState(false);
   const match = /language-(\w+)/.exec(className || '');
   const language = match ? match[1] : '';
   const isBlock = !inline && match;
@@ -61,25 +62,46 @@ const WebCodeBlock = ({ inline, className, children, colors }: any) => {
 
   if (isBlock) {
     return (
-      <div style={{ background: dracula.bg, borderRadius: 10, margin: '0.8em 0', overflow: 'hidden', border: `1px solid ${colors.border}` }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 16px', background: dracula.header, borderBottom: `1px solid ${colors.border}` }}>
-          <span style={{ fontSize: '0.8rem', color: dracula.fg, textTransform: 'lowercase', fontWeight: 600 }}>{language}</span>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <button onClick={handleCopy} style={{ background: 'transparent', border: 'none', color: dracula.fg, opacity: 0.8, cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}>
-              <span className="material-symbols-rounded" style={{ fontSize: 14 }}>{copied ? 'check' : 'content_copy'}</span>
-              {copied ? 'Copiado' : 'Copiar'}
+      <div style={{ background: dracula.bg, borderRadius: 8, margin: '1em 0', overflow: 'hidden', border: `1px solid rgba(255,255,255,0.1)`, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+        {/* Header - Mac OS style + Dracula */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: dracula.header, borderBottom: `1px solid rgba(255,255,255,0.05)` }}>
+          {/* Mac dots & Language */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#ff5f56' }} />
+              <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#ffbd2e' }} />
+              <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#27c93f' }} />
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'rgba(248, 248, 242, 0.6)', textTransform: 'lowercase', fontWeight: 600, letterSpacing: 0.5 }}>{language || 'code'}</span>
+          </div>
+          
+          {/* Actions */}
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+            <button onClick={() => setIsMinimized(!isMinimized)} title={isMinimized ? "Expandir" : "Minimizar"} style={{ background: 'transparent', border: 'none', color: dracula.fg, opacity: 0.6, cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', padding: 0, transition: 'opacity 0.2s' }} onMouseEnter={e => e.currentTarget.style.opacity = '1'} onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}>
+              <span className="material-symbols-rounded" style={{ fontSize: 16 }}>{isMinimized ? 'unfold_more' : 'unfold_less'}</span>
             </button>
-            <button onClick={handleDownload} style={{ background: 'transparent', border: 'none', color: dracula.fg, opacity: 0.8, cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}>
-              <span className="material-symbols-rounded" style={{ fontSize: 14 }}>download</span>
-              Baixar
+            <button onClick={handleCopy} title="Copiar" style={{ background: 'transparent', border: 'none', color: dracula.fg, opacity: 0.6, cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', padding: 0, transition: 'opacity 0.2s' }} onMouseEnter={e => e.currentTarget.style.opacity = '1'} onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}>
+              <span className="material-symbols-rounded" style={{ fontSize: 16 }}>{copied ? 'check' : 'content_copy'}</span>
+            </button>
+            <button onClick={handleDownload} title="Baixar" style={{ background: 'transparent', border: 'none', color: dracula.fg, opacity: 0.6, cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', padding: 0, transition: 'opacity 0.2s' }} onMouseEnter={e => e.currentTarget.style.opacity = '1'} onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}>
+              <span className="material-symbols-rounded" style={{ fontSize: 16 }}>download</span>
             </button>
           </div>
         </div>
-        <pre style={{ padding: '12px 16px', margin: 0, overflowX: 'auto', fontSize: '0.88em' }}>
-          <code style={{ fontFamily: 'monospace', color: dracula.fg }}>
-            {highlightCode(contentStr, 'span')}
-          </code>
-        </pre>
+
+        {/* Code Content */}
+        <div style={{ 
+          height: isMinimized ? 0 : 'auto', 
+          opacity: isMinimized ? 0 : 1, 
+          overflow: isMinimized ? 'hidden' : 'auto',
+          transition: 'all 0.2s ease-in-out'
+        }}>
+          <pre style={{ padding: '16px', margin: 0, fontSize: '0.88em', overflowX: 'auto' }}>
+            <code style={{ fontFamily: '"Fira Code", "JetBrains Mono", monospace', color: dracula.fg }}>
+              {highlightCode(contentStr, 'span')}
+            </code>
+          </pre>
+        </div>
       </div>
     );
   }
@@ -93,6 +115,7 @@ const WebCodeBlock = ({ inline, className, children, colors }: any) => {
 
 interface ChatMessageProps {
   message: Message;
+  onEdit?: (messageId: string, newContent: string) => void;
   style?: {
     container?: React.CSSProperties;
     bubble?: React.CSSProperties;
@@ -101,13 +124,50 @@ interface ChatMessageProps {
   };
 }
 
-export const ChatMessage: React.FC<ChatMessageProps> = ({ message, style }) => {
+export const ChatMessage: React.FC<ChatMessageProps> = ({ message, style, onEdit }) => {
   const isUser = message.role === 'user';
   const { theme } = useTheme();
   const { user } = useAuth();
   const colors = theme.colors;
   const hasThoughts = !isUser && !!message.thoughts;
   const hasAttachments = !!(message.attachments?.length || message.attachmentsMeta?.length);
+
+  // Edit state
+  const [isHovered, setIsHovered] = React.useState(false);
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [editValue, setEditValue] = React.useState(message.content);
+  const editRef = React.useRef<HTMLTextAreaElement>(null);
+
+  // Focus textarea when entering edit mode
+  React.useEffect(() => {
+    if (isEditing && editRef.current) {
+      editRef.current.focus();
+      editRef.current.selectionStart = editRef.current.value.length;
+    }
+  }, [isEditing]);
+
+  const handleEditStart = () => {
+    setEditValue(message.content);
+    setIsEditing(true);
+  };
+
+  const handleEditSave = () => {
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== message.content && onEdit) {
+      onEdit(message.id, trimmed);
+    }
+    setIsEditing(false);
+  };
+
+  const handleEditCancel = () => {
+    setEditValue(message.content);
+    setIsEditing(false);
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleEditSave(); }
+    if (e.key === 'Escape') handleEditCancel();
+  };
 
   /** Retorna ícone Material para um MIME type */
   const getMimeIcon = (mime: string) => {
@@ -137,12 +197,15 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, style }) => {
 
   return (
     <div
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="msg-row"
       style={{
         display: 'flex',
         flexDirection: isUser ? 'row-reverse' : 'row',
         alignItems: 'flex-start',
-        gap: 16,
-        padding: '16px 20px',
+        gap: 14,
+        padding: '12px 20px',
         width: '100%',
         margin: '0 auto',
         maxWidth: 980,
@@ -198,13 +261,13 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, style }) => {
         style={{
           flex: isUser ? '0 1 auto' : 1,
           width: isUser ? 'fit-content' : undefined,
-          maxWidth: isUser ? '75%' : '100%',
+          maxWidth: isUser ? '78%' : '100%',
           background: isUser ? colors.surfaceVariant : 'transparent',
-          padding: isUser ? '12px 16px' : '6px 0',
-          borderRadius: isUser ? '16px 4px 16px 16px' : 0,
+          padding: isUser ? '11px 16px' : '4px 0',
+          borderRadius: isUser ? '18px 4px 18px 18px' : 0,
           color: colors.text,
           fontSize: '1rem',
-          lineHeight: 1.6,
+          lineHeight: 1.65,
           wordWrap: 'break-word',
           ...style?.bubble,
         }}
@@ -285,8 +348,52 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, style }) => {
               </div>
 
             )}
-            {message.content && (
-              <span style={{ ...style?.text, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{message.content}</span>
+            {/* Edit mode: inline textarea */}
+            {isEditing ? (
+              <div style={{ width: '100%' }}>
+                <textarea
+                  ref={editRef}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={handleEditKeyDown}
+                  rows={Math.min(10, (editValue.match(/\n/g)?.length ?? 0) + 2)}
+                  style={{
+                    width: '100%', resize: 'none', outline: 'none',
+                    background: colors.background,
+                    color: colors.text,
+                    border: `1.5px solid ${colors.primary}`,
+                    borderRadius: 10, padding: '10px 12px',
+                    fontSize: '1rem', lineHeight: 1.6,
+                    fontFamily: 'inherit', boxSizing: 'border-box',
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={handleEditCancel}
+                    style={{
+                      padding: '5px 14px', borderRadius: 8, border: `1px solid ${colors.border}`,
+                      background: 'transparent', color: colors.textSecondary,
+                      cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'inherit',
+                    }}
+                  >Cancelar</button>
+                  <button
+                    onClick={handleEditSave}
+                    disabled={!editValue.trim() || editValue.trim() === message.content}
+                    style={{
+                      padding: '5px 14px', borderRadius: 8, border: 'none',
+                      background: colors.primary, color: '#fff',
+                      cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'inherit',
+                      opacity: (!editValue.trim() || editValue.trim() === message.content) ? 0.5 : 1,
+                    }}
+                  >Salvar</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {message.content && (
+                  <span style={{ ...style?.text, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{message.content}</span>
+                )}
+              </>
             )}
           </>
         ) : (
@@ -297,9 +404,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, style }) => {
             {hasThoughts && (
               <details
                 style={{
-                  color: colors.textSecondary,
-                  fontSize: '0.9rem',
                   marginBottom: 12,
+                  color: colors.textSecondary,
                 }}
               >
                 <summary
@@ -307,29 +413,32 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, style }) => {
                     cursor: 'pointer',
                     userSelect: 'none',
                     outline: 'none',
-                    fontWeight: 500,
                     listStyle: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    fontSize: '0.8rem',
                     fontStyle: 'italic',
-                    opacity: 0.8,
+                    opacity: 0.55,
+                    letterSpacing: '0.01em',
                   }}
                 >
-                  <span style={{ marginRight: 6, fontSize: '0.8em' }}>▶</span>
+                  <span className="material-symbols-rounded" style={{ fontSize: 13 }}>psychology</span>
                   Pensamento
                 </summary>
                 <div
                   style={{
-                    paddingTop: '8px',
-                    paddingLeft: '14px',
-                    borderLeft: `2px solid ${colors.border}`,
-                    marginLeft: '4px',
-                    marginTop: '4px',
-                    lineHeight: 1.5,
+                    marginTop: 8,
+                    paddingLeft: 12,
+                    borderLeft: `1.5px solid ${colors.border}`,
+                    lineHeight: 1.55,
                     whiteSpace: 'pre-wrap',
-                    fontSize: '0.85rem',
-                    opacity: 0.8,
+                    fontSize: '0.8rem',
+                    opacity: 0.5,
                   }}
                 >
                   {message.thoughts}
+
                 </div>
               </details>
             )}
@@ -409,6 +518,42 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, style }) => {
           </>
         )}
       </div>
+
+      {/* Lápis de edição — fora do bubble, visível no hover da row */}
+      {isUser && onEdit && !isEditing && !message.isStreaming && (
+        <button
+          onClick={handleEditStart}
+          title="Editar mensagem"
+          style={{
+            alignSelf: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 34,
+            height: 34,
+            borderRadius: '50%',
+            border: `1px solid ${colors.border}`,
+            background: colors.background,
+            color: colors.textSecondary,
+            cursor: 'pointer',
+            flexShrink: 0,
+            opacity: isHovered ? 1 : 0,
+            transform: isHovered ? 'scale(1)' : 'scale(0.75)',
+            transition: 'opacity 0.16s ease, transform 0.16s cubic-bezier(0.34,1.56,0.64,1), background 0.15s, color 0.15s',
+            pointerEvents: isHovered ? 'auto' : 'none',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = colors.surfaceVariant;
+            e.currentTarget.style.color = colors.primary;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = colors.background;
+            e.currentTarget.style.color = colors.textSecondary;
+          }}
+        >
+          <span className="material-symbols-rounded" style={{ fontSize: 16 }}>edit</span>
+        </button>
+      )}
     </div>
   );
 };

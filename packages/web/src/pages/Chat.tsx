@@ -4,9 +4,10 @@
 
 import React, { useRef, useEffect } from 'react';
 import { useChat, useTheme, Sidebar, MessageList, ChatInput, useSidebar, useAuth } from '@flavos/shared';
+import { ErrorBanner } from '../components/ErrorBanner';
 
 const Chat: React.FC = () => {
-  const { messages, isLoading, error, sendMessage, stopGeneration, clearMessages, clearError, isTyping, currentConversationId } = useChat();
+  const { messages, isLoading, error, errorType, retryAfter, sendMessage, editMessage, stopGeneration, clearMessages, clearError, isTyping, currentConversationId } = useChat();
   const { theme } = useTheme();
   const { isPinned } = useSidebar();
   const { user } = useAuth();
@@ -38,46 +39,20 @@ const Chat: React.FC = () => {
           transition: 'margin-left 0.28s cubic-bezier(0.4,0,0.2,1)',
         }}
       >
-        {/* Error banner (absoluto no topo) */}
+        {/* ── Premium Error Banner ── */}
         {error && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              zIndex: 100,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '10px 20px',
-              background: 'rgba(214, 41, 57, 0.15)', // --error com opacidade
-              borderBottom: '1px solid rgba(214, 41, 57, 0.3)',
-              color: theme.colors.error,
-              fontSize: '13px',
-              backdropFilter: 'blur(8px)',
-            }}
-          >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="material-symbols-rounded" style={{ fontSize: 18 }}>error</span>
-              {error}
-            </span>
-            <button
-              onClick={clearError}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: theme.colors.error,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '4px',
-              }}
-            >
-              <span className="material-symbols-rounded" style={{ fontSize: 18 }}>close</span>
-            </button>
-          </div>
+          <ErrorBanner
+            error={error}
+            errorType={errorType}
+            retryAfter={retryAfter}
+            onDismiss={clearError}
+            onRetry={messages.length > 0 ? () => {
+              const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+              if (lastUserMsg) { clearError(); sendMessage(lastUserMsg.content); }
+            } : undefined}
+          />
         )}
+
 
         {/* Content Area */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -97,33 +72,34 @@ const Chat: React.FC = () => {
             >
               <h1
                 style={{
-                  fontSize: '3rem',
-                  fontWeight: 600,
+                  fontSize: 'clamp(2rem, 4vw, 2.8rem)',
+                  fontWeight: 700,
                   background: 'linear-gradient(to right, #66ff4b, #ff5546)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
-                  marginBottom: 8,
+                  marginBottom: 6,
+                  lineHeight: 1.15,
                 }}
               >
                 Olá{user?.displayName ? `, ${user.displayName.split(' ').slice(0, 2).join(' ')}` : ''}!
               </h1>
               <h2
                 style={{
-                  fontSize: '2.6rem',
+                  fontSize: 'clamp(1.6rem, 3.2vw, 2.2rem)',
                   color: 'var(--text-sec)',
                   fontWeight: 400,
+                  lineHeight: 1.2,
                 }}
               >
                 Como posso te ajudar?
               </h2>
 
-              {/* Sugestões (Opcional - da base CSS) */}
               <div
                 style={{
                   display: 'flex',
-                  gap: 16,
-                  marginTop: 60,
+                  gap: 12,
+                  marginTop: 48,
                   overflowX: 'auto',
                   paddingBottom: 20,
                   scrollbarWidth: 'none',
@@ -137,38 +113,32 @@ const Chat: React.FC = () => {
                   <div
                     key={i}
                     onClick={() => sendMessage(sug.text)}
+                    className="suggestion-card"
                     style={{
-                      width: 228,
-                      padding: 18,
+                      width: 220,
+                      padding: '16px 18px',
                       flexShrink: 0,
                       display: 'flex',
                       flexDirection: 'column',
-                      alignItems: 'flex-end',
+                      alignItems: 'flex-start',
                       justifyContent: 'space-between',
-                      borderRadius: 12,
+                      borderRadius: 14,
                       background: 'var(--surface-variant)',
+                      border: '1px solid var(--border)',
                       cursor: 'pointer',
-                      transition: 'background 0.3s',
-                      minHeight: 140,
+                      minHeight: 120,
+                      gap: 16,
                     }}
-                    onMouseOver={(e) => (e.currentTarget.style.background = 'var(--border)')}
-                    onMouseOut={(e) => (e.currentTarget.style.background = 'var(--surface-variant)')}
                   >
-                    <p style={{ width: '100%', fontSize: '1.1rem', color: 'var(--text)' }}>
+                    <p style={{ fontSize: '0.95rem', color: 'var(--text)', lineHeight: 1.45 }}>
                       {sug.text}
                     </p>
                     <span
                       className="material-symbols-rounded"
                       style={{
-                        width: 45,
-                        height: 45,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        borderRadius: '50%',
-                        background: 'var(--bg)',
-                        color: ['#1d7efd', '#28a745', '#ffc107', '#6f42c1'][i % 4],
-                        marginTop: 'auto',
+                        fontSize: 20,
+                        color: ['#1d7efd', '#28a745', '#ffc107'][i % 3],
+                        opacity: 0.85,
                       }}
                     >
                       {sug.icon}
@@ -182,6 +152,7 @@ const Chat: React.FC = () => {
               <MessageList
                 messages={messages}
                 isTyping={isTyping}
+                onEditMessage={editMessage}
                 style={{
                   container: { background: 'transparent' },
                 }}

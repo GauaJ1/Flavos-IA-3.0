@@ -170,7 +170,14 @@ const MobileChatInput: React.FC<MobileChatInputProps> = ({
   ];
 
   return (
-    <View style={[styles.wrapper, { backgroundColor: c.background, paddingBottom: Math.max(bottomInset, Platform.OS === 'ios' ? 8 : 12) }]}>
+    <View style={[
+      styles.wrapper,
+      {
+        backgroundColor: c.background,
+        borderTopColor: `${c.border}80`,
+        paddingBottom: Math.max(bottomInset, Platform.OS === 'ios' ? 8 : 12),
+      },
+    ]}>
 
       {/* ── Attach Menu Modal ── */}
       <Modal
@@ -244,7 +251,7 @@ const MobileChatInput: React.FC<MobileChatInputProps> = ({
       )}
 
       {/* Pill container */}
-      <View style={[styles.pill, { backgroundColor: c.inputBackground }]}>
+      <View style={[styles.pill, { backgroundColor: c.inputBackground, borderColor: c.border }]}>
         <TextInput
           style={[styles.input, { color: c.text, fontFamily: 'Outfit_400Regular' }]}
           value={text}
@@ -295,19 +302,19 @@ const MobileChatInput: React.FC<MobileChatInputProps> = ({
               disabled={!isValid}
               style={({ pressed }) => [
                 styles.sendBtn,
-                { backgroundColor: isValid ? c.primary : 'transparent', opacity: pressed ? 0.75 : 1 },
+                { backgroundColor: isValid ? c.primary : 'transparent', opacity: pressed ? 0.7 : 1 },
               ]}
               accessibilityLabel="Enviar mensagem"
               hitSlop={4}
             >
-              <MaterialIcons name="send" size={20} color={isValid ? '#fff' : c.placeholder} style={{ marginLeft: 3 }} />
+              <MaterialIcons name="send" size={21} color={isValid ? '#fff' : c.placeholder} style={{ marginLeft: 3 }} />
             </Pressable>
           )}
         </View>
       </View>
 
-      <Text style={[styles.disclaimer, { color: c.placeholder, fontFamily: 'Outfit_400Regular' }]}>
-        Atualmente Flavos IA pode cometer erros, reveja as respostas.
+      <Text style={[styles.disclaimer, { color: c.textSecondary, fontFamily: 'Outfit_400Regular', opacity: 0.5 }]}>
+        Flavos IA pode cometer erros. Revise as respostas importantes.
       </Text>
     </View>
   );
@@ -315,30 +322,37 @@ const MobileChatInput: React.FC<MobileChatInputProps> = ({
 
 const styles = StyleSheet.create({
   wrapper: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   pill: {
     flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 130,
+    alignItems: 'flex-end',
+    borderRadius: 26,
     paddingLeft: 20,
     paddingRight: 8,
-    paddingVertical: 6,
-    minHeight: 54,
+    paddingTop: 8,
+    paddingBottom: 8,
+    minHeight: 56,
+    borderWidth: 1.5,
   },
   input: {
     flex: 1,
-    fontSize: 15,
-    lineHeight: 22,
-    maxHeight: 120,
-    paddingVertical: 6,
+    fontSize: 15.5,
+    lineHeight: 23,
+    maxHeight: 160,
+    paddingTop: 3,
+    paddingBottom: 3,
+    alignSelf: 'stretch',
   },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     marginLeft: 8,
+    alignSelf: 'flex-end',
+    paddingBottom: 4,
   },
   iconBtn: {
     width: 40,
@@ -348,9 +362,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   sendBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -358,6 +372,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: 'center',
     marginTop: 6,
+    marginBottom: 2,
   },
   chip: {
     flexDirection: 'row',

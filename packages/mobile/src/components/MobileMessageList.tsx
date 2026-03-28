@@ -3,20 +3,50 @@
 // ===================================================
 
 import React, { useRef, useEffect } from 'react';
-import { ScrollView, View, Image, StyleSheet } from 'react-native';
+import { ScrollView, View, Image, StyleSheet, Animated } from 'react-native';
 import type { Message } from '@flavos/shared';
 import { useTheme } from '../theme';
-import { Text } from './Text';
 import MobileChatMessage from './MobileChatMessage';
 
 interface MobileMessageListProps {
   messages: Message[];
   isTyping?: boolean;
+  onEditMessage?: (messageId: string, newContent: string) => void;
 }
+
+// ── Animated typing dots ──────────────────────────────────
+const TypingDot = ({ delay, color }: { delay: number; color: string }) => {
+  const scale = useRef(new Animated.Value(0.65)).current;
+  const opacity = useRef(new Animated.Value(0.4)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.parallel([
+          Animated.timing(scale,   { toValue: 1,    duration: 300, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 1,    duration: 300, useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(scale,   { toValue: 0.65, duration: 300, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0.4,  duration: 300, useNativeDriver: true }),
+        ]),
+        Animated.delay(600 - delay),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, []);
+
+  return (
+    <Animated.View style={[styles.dot, { backgroundColor: color, transform: [{ scale }], opacity }]} />
+  );
+};
 
 const MobileMessageList: React.FC<MobileMessageListProps> = ({
   messages,
   isTyping = false,
+  onEditMessage,
 }) => {
   const scrollRef = useRef<ScrollView>(null);
   const { theme } = useTheme();
@@ -27,7 +57,7 @@ const MobileMessageList: React.FC<MobileMessageListProps> = ({
     if (messages.length > 0 || isTyping) {
       setTimeout(() => {
         scrollRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      }, 80);
     }
   }, [messages.length, isTyping]);
 
@@ -40,7 +70,11 @@ const MobileMessageList: React.FC<MobileMessageListProps> = ({
       keyboardShouldPersistTaps="handled"
     >
       {messages.map((msg) => (
-        <MobileChatMessage key={msg.id} message={msg} />
+        <MobileChatMessage
+          key={msg.id}
+          message={msg}
+          onEdit={msg.role === 'user' ? onEditMessage : undefined}
+        />
       ))}
 
       {/* Typing indicator — só aparece se não houver mensagem em streaming já visível */}
@@ -51,14 +85,16 @@ const MobileMessageList: React.FC<MobileMessageListProps> = ({
             style={styles.typingAvatar}
             resizeMode="contain"
           />
-          <Text style={[styles.typingText, { color: c.textSecondary }]}>
-            Pensando...
-          </Text>
+          <View style={styles.dotsRow}>
+            <TypingDot delay={0}   color={c.textSecondary} />
+            <TypingDot delay={160} color={c.textSecondary} />
+            <TypingDot delay={320} color={c.textSecondary} />
+          </View>
         </View>
       )}
 
       {/* Bottom spacer so content doesn't hide behind the input */}
-      <View style={{ height: 16 }} />
+      <View style={{ height: 20 }} />
     </ScrollView>
   );
 };
@@ -68,13 +104,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingTop: 12,
+    paddingTop: 16,
     flexGrow: 1,
   },
   typingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     gap: 12,
   },
@@ -83,9 +119,15 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 8,
   },
-  typingText: {
-    fontSize: 15,
-    fontStyle: 'italic',
+  dotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
   },
 });
 

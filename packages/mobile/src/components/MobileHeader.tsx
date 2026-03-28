@@ -17,14 +17,14 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({ onMenuPress }) => {
   const c = theme.colors;
 
   return (
-    <View style={[styles.container, { backgroundColor: c.background, borderBottomColor: c.border }]}>
+    <View style={[styles.container, { backgroundColor: c.background, borderBottomColor: `${c.border}cc` }]}>
       <Pressable
         onPress={onMenuPress}
-        style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.6 }]}
+        style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.55, transform: [{ scale: 0.9 }] }]}
         hitSlop={10}
         accessibilityLabel="Abrir menu"
       >
-        <MaterialIcons name="menu" size={28} color={c.text} />
+        <MaterialIcons name="menu" size={26} color={c.text} />
       </Pressable>
 
       <Text weight="bold" style={[styles.title, { color: c.text }]}>Flavos IA</Text>
@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderBottomWidth: 1,
   },
   iconBtn: {
@@ -51,8 +51,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 18,
-    letterSpacing: 0.5,
+    fontSize: 17,
+    letterSpacing: 0.3,
   },
 });
 

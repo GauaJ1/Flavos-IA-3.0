@@ -18,6 +18,44 @@ export interface StreamingCallbacks {
   onError: (err: Error) => void;
 }
 
+export type AiErrorType = 'rate_limit' | 'network' | 'stream' | 'backend' | 'unknown';
+
+/** Erro enriquecido com tipo semântico e retryAfter para a UI. */
+export class AiError extends Error {
+  constructor(
+    message: string,
+    public readonly errorType: AiErrorType = 'unknown',
+    public readonly retryAfter: number | null = null,
+  ) {
+    super(message);
+    this.name = 'AiError';
+  }
+}
+
+/** Converte status HTTP em AiError com mensagem amigável. */
+function httpStatusToError(status: number, retryAfterHeader?: string | null): AiError {
+  if (status === 429) {
+    const secs = retryAfterHeader ? parseInt(retryAfterHeader, 10) : null;
+    const wait = (secs && !isNaN(secs)) ? ` Aguarde ${secs}s.` : ' Aguarde alguns instantes.';
+    return new AiError(
+      `Muitas solicitações em pouco tempo.${wait} Tente novamente em breve.`,
+      'rate_limit',
+      (secs && !isNaN(secs)) ? secs : 30,
+    );
+  }
+  if (status === 401 || status === 403) {
+    return new AiError('Sessão expirada ou sem permissão. Faça login novamente.', 'backend');
+  }
+  if (status >= 500) {
+    return new AiError(
+      'O servidor da IA encontrou um problema interno. Tente novamente em alguns instantes.',
+      'backend',
+    );
+  }
+  return new AiError(`Erro inesperado (HTTP ${status}). Tente novamente.`, 'unknown');
+}
+
+
 // ─────────────────────────────────────────────────
 // Helper: Firebase token header
 // ─────────────────────────────────────────────────
@@ -60,7 +98,19 @@ function processSSEBuffer(
       if (parsed.text)      callbacks.onText(parsed.text);
       if (parsed.thought)   callbacks.onThought(parsed.thought);
       if (parsed.grounding) callbacks.onGrounding(parsed.grounding.sources ?? [], parsed.grounding.supports ?? []);
-      if (parsed.error)     callbacks.onError(new Error(parsed.error));
+      if (parsed.error) {
+        const errVal: string = parsed.error;
+        if (errVal.startsWith('__rate_limit__')) {
+          const secs = parseInt(errVal.split(':')[1] ?? '30', 10);
+          callbacks.onError(new AiError(
+            `Muitas solicitações em pouco tempo. Aguarde ${secs}s e tente novamente.`,
+            'rate_limit',
+            secs,
+          ));
+        } else {
+          callbacks.onError(new AiError(errVal, 'unknown'));
+        }
+      }
     } catch {
       // Malformed JSON chunk — skip silently
     }
@@ -116,13 +166,28 @@ function streamWithXHR(
   };
 
   xhr.onerror = () => {
-    if (!done) callbacks.onError(new Error('Erro de rede ao conectar com o backend.'));
+    if (!done) {
+      done = true;
+      callbacks.onError(new AiError(
+        'Erro de rede ao conectar com o backend. Verifique sua conexão.',
+        'network',
+      ));
+    }
   };
 
-  xhr.onabort = () => { /* silently cancelled */ };
+  xhr.onabort = () => { /* silently cancelled — user triggered stopGeneration */ };
+
+  // Intercept non-2xx HTTP status BEFORE onload treats the body as SSE
+  xhr.addEventListener('readystatechange', () => {
+    if (xhr.readyState === 4 && !done && (xhr.status < 200 || xhr.status >= 300)) {
+      done = true;
+      callbacks.onError(httpStatusToError(xhr.status, xhr.getResponseHeader('retry-after')));
+    }
+  });
 
   // Abort via AbortController signal
   controller.signal.addEventListener('abort', () => xhr.abort());
+
 
   xhr.send(body);
   return controller;

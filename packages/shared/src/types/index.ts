@@ -27,7 +27,7 @@ export interface Entry {
  * Status possíveis de uma conversa.
  * Permite soft-delete e lifecycle management.
  */
-export type ConversationStatus = 'active' | 'archived' | 'deleted';
+export type ConversationStatus = 'active' | 'archived' | 'trash';
 
 /**
  * Metadados de uma conversa armazenados em:
@@ -45,6 +45,7 @@ export interface Conversation {
   status: ConversationStatus;
   visibility: 'private';
   pinned?: boolean;
+  trashedAt?: number;        // Timestamp de quando foi movida para a lixeira
 }
 
 /**
@@ -53,7 +54,7 @@ export interface Conversation {
  */
 export type ConversationMeta = Pick<
   Conversation,
-  'id' | 'title' | 'lastMsgPreview' | 'lastMsgRole' | 'lastMsgAt' | 'updatedAt' | 'status' | 'pinned'
+  'id' | 'title' | 'lastMsgPreview' | 'lastMsgRole' | 'lastMsgAt' | 'updatedAt' | 'status' | 'pinned' | 'trashedAt'
 >;
 
 // ===== Estado do Chat (Zustand) =====
@@ -93,6 +94,7 @@ export interface Message {
   attachments?: MediaAttachment[];       // runtime only (base64)
   attachmentsMeta?: AttachmentMeta[];    // from Firestore (no base64)
   isStreaming?: boolean;                 // true while SSE stream is active
+  superseded?: boolean;                  // true = soft-deleted by message edit
 }
 
 /** Estado do chat gerenciado pelo Zustand. */
@@ -101,12 +103,25 @@ export interface ChatState {
   isLoading: boolean;
   isTyping: boolean;
   error: string | null;
+  /** Categoria do erro para renderização diferenciada na UI. */
+  errorType: 'rate_limit' | 'network' | 'stream' | 'backend' | 'unknown' | null;
+  /** Segundos até poder tentar novamente (para erros 429). */
+  retryAfter: number | null;
   currentConversationId: string | null;
-  conversations: ConversationMeta[];
+  conversations: ConversationMeta[];          // Lista ativa (sidebar)
+  trashedConversations: ConversationMeta[];   // Lista da lixeira
+  editingMessageId: string | null;            // ID da mensagem em modo de edição
   sendMessage: (content: string, attachments?: MediaAttachment[]) => Promise<void>;
+  editMessage: (messageId: string, newContent: string) => Promise<void>;
+  trashConversation: (conversationId: string) => Promise<void>;
+  restoreConversation: (conversationId: string) => Promise<void>;
+  hardDeleteConversation: (conversationId: string) => Promise<void>;
+  /** @deprecated Use trashConversation */
+  deleteConversation: (conversationId: string) => Promise<void>;
   clearMessages: () => void;
   clearError: () => void;
   loadConversations: () => void;         // Inicia listener realtime da sidebar
+  listenTrash: () => void;               // Inicia listener realtime da lixeira
   loadConversation: (id: string) => Promise<void>; // Carrega entries de uma conversa
   unsubscribeAll: () => void;            // Para todos os listeners quando necessário
 }

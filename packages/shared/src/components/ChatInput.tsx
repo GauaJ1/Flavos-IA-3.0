@@ -67,7 +67,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const resetHeight = () => {
     if (textareaRef.current) {
-      textareaRef.current.style.height = '24px';
+      textareaRef.current.style.height = 'auto';
     }
   };
 
@@ -89,7 +89,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
     const el = e.currentTarget;
-    el.style.height = '24px';
+    el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   };
 
@@ -207,16 +207,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       )}
 
       <div
+        className="chat-input-wrapper"
         style={{
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-end',
           width: '100%',
-          minHeight: 56,
+          minHeight: 54,
           background: 'var(--input-bg)',
           borderRadius: 28,
-          padding: '6px 8px 6px 24px',
+          padding: '8px 8px 8px 22px',
           boxSizing: 'border-box',
           gap: 4,
+          border: '1.5px solid var(--border)',
           ...style?.wrapper,
         }}
       >
@@ -232,7 +234,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           maxLength={APP_CONFIG.MAX_MESSAGE_LENGTH}
           style={{
             flex: 1,
-            minHeight: 24,
+            minHeight: 38,
             maxHeight: 200,
             background: 'none',
             border: 'none',
@@ -241,16 +243,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             outline: 'none',
             fontFamily: 'inherit',
             resize: 'none',
-            lineHeight: '24px',
-            padding: '10px 0',
+            lineHeight: '1.5',
+            padding: '9px 0',
             margin: 0,
             overflowY: 'auto',
             display: 'block',
+            alignSelf: 'stretch',
             ...style?.input,
           }}
         />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingBottom: 4 }}>
           {/* Input de arquivo oculto */}
           <input
             ref={fileInputRef}
@@ -347,9 +350,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transition: 'all 0.3s',
+                transition: 'background 0.2s, transform 0.15s cubic-bezier(0.34,1.56,0.64,1)',
                 ...style?.button,
               }}
+              onMouseEnter={(e) => { if (isValid) e.currentTarget.style.transform = 'scale(1.08)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
             >
               <span className="material-symbols-rounded">send</span>
             </button>
@@ -358,13 +363,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       </div>
       <p
         style={{
-          fontSize: '0.8rem',
-          color: 'var(--placeholder)',
-          marginTop: 12,
+          fontSize: '0.78rem',
+          color: 'var(--text-sec)',
+          marginTop: 10,
           textAlign: 'center',
+          opacity: 0.6,
         }}
       >
-        Atualmente Flavos IA pode cometer erros, reveja as respostas.
+        Flavos IA pode cometer erros. Revise as respostas importantes.
       </p>
     </div>
   );

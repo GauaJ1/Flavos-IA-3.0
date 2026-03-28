@@ -4,8 +4,19 @@
 
 import { create } from 'zustand';
 import type { ChatState, Message, ConversationMeta, MediaAttachment } from '../types';
-import { aiService } from '../services/aiService';
-import { createConversation, saveEntryAndUpdateMeta, listenConversations, listenEntries, pinConversation as dbPinConversation } from '../services/dbService';
+import { aiService, AiError } from '../services/aiService';
+import {
+  createConversation,
+  saveEntryAndUpdateMeta,
+  listenConversations,
+  listenTrashedConversations,
+  listenEntries,
+  pinConversation as dbPinConversation,
+  supersedEntriesFrom,
+  trashConversation as dbTrashConversation,
+  restoreConversation as dbRestoreConversation,
+  hardDeleteConversation as dbHardDeleteConversation,
+} from '../services/dbService';
 import { generateId } from '../utils/generateId';
 import { useAuth } from './useAuth';
 import type { Unsubscribe } from 'firebase/firestore';
@@ -13,6 +24,7 @@ import type { Unsubscribe } from 'firebase/firestore';
 // Guarda as funções de unsubscribe dos listeners realtime fora do store
 // para não causar re-renders no Zustand
 let _unsubConversations: Unsubscribe | null = null;
+let _unsubTrash: Unsubscribe | null = null;
 let _unsubEntries: Unsubscribe | null = null;
 let _activeStreamController: AbortController | null = null;
 
@@ -53,10 +65,6 @@ function makeGroundingAwareListener(
 }
 
 interface ExtendedChatState extends ChatState {
-  currentConversationId: string | null;
-  conversations: ConversationMeta[];
-  loadConversations: () => void;
-  loadConversation: (id: string) => Promise<void>;
   stopGeneration: () => void;
   pinConversation: (id: string, pinned: boolean) => Promise<void>;
   unsubscribeAll: () => void;
@@ -67,8 +75,12 @@ export const useChat = create<ExtendedChatState>((set, get) => ({
   isLoading: false,
   isTyping: false,
   error: null,
+  errorType: null,
+  retryAfter: null,
   currentConversationId: null,
   conversations: [],
+  trashedConversations: [],
+  editingMessageId: null,
 
   /**
    * Inicia o listener realtime da lista de conversas (sidebar).
@@ -93,6 +105,19 @@ export const useChat = create<ExtendedChatState>((set, get) => ({
         return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
       });
       set({ conversations: sorted });
+    });
+  },
+
+  /**
+   * Inicia o listener realtime da lixeira.
+   * Conversas com status='trash', ordenadas por trashedAt desc.
+   */
+  listenTrash: () => {
+    const user = useAuth.getState().user;
+    if (!user) return;
+    if (_unsubTrash) { _unsubTrash(); _unsubTrash = null; }
+    _unsubTrash = listenTrashedConversations(user.id, (trashedConversations) => {
+      set({ trashedConversations });
     });
   },
 
@@ -146,6 +171,95 @@ export const useChat = create<ExtendedChatState>((set, get) => ({
       });
       return { conversations: sorted };
     });
+  },
+
+  /**
+   * Edita uma mensagem do usuário:
+   *  1. Aborta stream ativo (se houver).
+   *  2. Marca a entry editada + posteriores como superseded no Firestore.
+   *  3. Trunca o estado local até antes da mensagem editada.
+   *  4. Re-envia via sendMessage (que cria novas entries + regenera IA).
+   */
+  editMessage: async (messageId: string, newContent: string) => {
+    const trimmed = newContent.trim();
+    if (!trimmed) return;
+
+    const { messages, currentConversationId } = get();
+    const idx = messages.findIndex((m) => m.id === messageId);
+    if (idx === -1) return;
+
+    const targetMsg = messages[idx];
+    if (targetMsg.role !== 'user') return; // Nunca edita mensagens da IA
+
+    // 1. Aborta stream ativo
+    if (_activeStreamController) {
+      _activeStreamController.abort();
+      _activeStreamController = null;
+    }
+
+    // 2. Marca entries como superseded no Firestore (a partir do timestamp da mensagem editada)
+    if (currentConversationId && targetMsg.timestamp) {
+      await supersedEntriesFrom(currentConversationId, targetMsg.timestamp);
+    }
+
+    // 3. Trunca estado local: remove a mensagem editada e todas as posteriores
+    set((state) => ({
+      messages: state.messages.slice(0, idx),
+      editingMessageId: null,
+      isTyping: false,
+    }));
+
+    // 4. Re-envia a mensagem com o novo conteúdo (cria novas entries + regenera IA)
+    await get().sendMessage(trimmed);
+  },
+
+  /**
+   * Move uma conversa para a lixeira (status='trash').
+   * Remove da sidebar imediatamente (otimista).
+   * O listener da lixeira a exibirá automaticamente.
+   */
+  trashConversation: async (conversationId: string) => {
+    // Remoção otimista da sidebar
+    set((state) => ({
+      conversations: state.conversations.filter((c) => c.id !== conversationId),
+    }));
+
+    // Limpa chat se for a conversa ativa
+    if (get().currentConversationId === conversationId) {
+      if (_activeStreamController) { _activeStreamController.abort(); _activeStreamController = null; }
+      if (_unsubEntries) { _unsubEntries(); _unsubEntries = null; }
+      set({ messages: [], currentConversationId: null, isTyping: false });
+    }
+
+    await dbTrashConversation(conversationId);
+  },
+
+  /** @deprecated Use trashConversation */
+  deleteConversation: async (conversationId: string) => {
+    return get().trashConversation(conversationId);
+  },
+
+  /**
+   * Restaura uma conversa da lixeira para 'active'.
+   * Remove do estado trashedConversations imediatamente.
+   * O listener de conversas ativas a readicionará na sidebar.
+   */
+  restoreConversation: async (conversationId: string) => {
+    set((state) => ({
+      trashedConversations: state.trashedConversations.filter((c) => c.id !== conversationId),
+    }));
+    await dbRestoreConversation(conversationId);
+  },
+
+  /**
+   * Hard delete: apaga fisicamente a conversa (deve estar em 'trash').
+   * Entries órfãs são limpas pelo job backend.
+   */
+  hardDeleteConversation: async (conversationId: string) => {
+    set((state) => ({
+      trashedConversations: state.trashedConversations.filter((c) => c.id !== conversationId),
+    }));
+    await dbHardDeleteConversation(conversationId);
   },
 
   /**
@@ -267,8 +381,14 @@ export const useChat = create<ExtendedChatState>((set, get) => ({
           },
           onError: (err) => {
             _activeStreamController = null;
-            updateLastAiMsg(m => ({ ...m, isStreaming: false, content: m.content || 'Erro ao gerar resposta.' }));
-            set({ isTyping: false, error: err.message });
+            const aiErr = err instanceof AiError ? err : null;
+            updateLastAiMsg(m => ({ ...m, isStreaming: false, content: m.content || '' }));
+            set({
+              isTyping: false,
+              error: err.message,
+              errorType: aiErr?.errorType ?? 'unknown',
+              retryAfter: aiErr?.retryAfter ?? null,
+            });
           },
         }
       );
@@ -276,9 +396,12 @@ export const useChat = create<ExtendedChatState>((set, get) => ({
       _activeStreamController = controller;
 
     } catch (error) {
+      const aiErr = error instanceof AiError ? error : null;
       set({
         isTyping: false,
         error: error instanceof Error ? error.message : 'Erro ao contactar a IA.',
+        errorType: aiErr?.errorType ?? 'unknown',
+        retryAfter: aiErr?.retryAfter ?? null,
       });
       // Remove o placeholder se falhou antes do stream iniciar
       set((state) => ({
@@ -300,7 +423,7 @@ export const useChat = create<ExtendedChatState>((set, get) => ({
     set({ messages: [], error: null, currentConversationId: null });
   },
 
-  clearError: () => set({ error: null }),
+  clearError: () => set({ error: null, errorType: null, retryAfter: null }),
 
   /**
    * Para TODOS os listeners. Chamar no logout.
@@ -308,7 +431,8 @@ export const useChat = create<ExtendedChatState>((set, get) => ({
   unsubscribeAll: () => {
     if (_activeStreamController) { _activeStreamController.abort(); _activeStreamController = null; }
     if (_unsubConversations) { _unsubConversations(); _unsubConversations = null; }
+    if (_unsubTrash) { _unsubTrash(); _unsubTrash = null; }
     if (_unsubEntries) { _unsubEntries(); _unsubEntries = null; }
-    set({ messages: [], conversations: [], currentConversationId: null });
+    set({ messages: [], conversations: [], trashedConversations: [], currentConversationId: null });
   },
 }));

@@ -56,7 +56,7 @@ service cloud.firestore {
         && d.lastMsgAt is timestamp       // serverTimestamp()
         && d.createdAt is timestamp       // serverTimestamp()
         && d.updatedAt is timestamp       // serverTimestamp()
-        && d.status in ['active', 'archived', 'deleted']
+        && d.status in ['active', 'archived', 'trash']
         && d.visibility in ['private'];
     }
 
@@ -68,7 +68,7 @@ service cloud.firestore {
     // ---------------------------------------------------------
     function isValidEntry() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['role','sender','body','createdAt','thoughts','grounding','isStreaming'])
+      return d.keys().hasOnly(['role','sender','body','createdAt','thoughts','grounding','isStreaming','attachmentsMeta'])
         && d.keys().hasAll(['role','sender','body','createdAt'])
         && d.role   in ['user', 'assistant', 'system']
         && d.sender in ['user', 'ai', 'tool', 'agent', 'system']
@@ -82,6 +82,25 @@ service cloud.firestore {
              || (d.grounding is list && d.grounding.size() <= 10))
         && (!d.keys().hasAny(['isStreaming'])
              || d.isStreaming == false);  // nunca persiste true
+    }
+
+    // ---------------------------------------------------------
+    // isValidEntrySupersede()
+    // Permite marcar uma entry como 'superseded' (edição de mensagem).
+    // Regras:
+    //   • Apenas o campo 'superseded' pode ser alterado.
+    //   • O valor só pode ir para true — nunca reverter para false.
+    //   • Campos imutáveis (role, sender, body, createdAt) não podem mudar.
+    // ---------------------------------------------------------
+    function isValidEntrySupersede() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return affected.hasOnly(['superseded'])
+        && request.resource.data.superseded == true
+        // Garante que campos originais não foram tocados
+        && request.resource.data.role      == resource.data.role
+        && request.resource.data.sender    == resource.data.sender
+        && request.resource.data.body      == resource.data.body
+        && request.resource.data.createdAt == resource.data.createdAt;
     }
 
     // ---------------------------------------------------------
@@ -99,7 +118,7 @@ service cloud.firestore {
           && (!affected.hasAny(['lastMsgRole'])
                || d.lastMsgRole in ['user','assistant','system'])
           && (!affected.hasAny(['status'])
-               || d.status in ['active','archived','deleted'])
+               || d.status in ['active','archived','trash'])
           && (!affected.hasAny(['visibility'])
                || d.visibility in ['private'])
           && (!affected.hasAny(['lastMsgAt'])
@@ -107,7 +126,10 @@ service cloud.firestore {
           && (!affected.hasAny(['updatedAt'])
                || d.updatedAt is timestamp)
           && (!affected.hasAny(['pinned'])
-               || d.pinned is bool);
+               || d.pinned is bool)
+          // trashedAt: deve ser timestamp se presente, não pode ser definido em status != 'trash'
+          && (!affected.hasAny(['trashedAt'])
+               || d.trashedAt is timestamp);
     }
 
     // =========================================================
@@ -155,11 +177,14 @@ service cloud.firestore {
         && ownerIsUnchanged()
         && request.resource.data.diff(resource.data)
              .affectedKeys()
-             .hasOnly(['title','lastMsgPreview','lastMsgRole','lastMsgAt','updatedAt','status','visibility','pinned'])
+             .hasOnly(['title','lastMsgPreview','lastMsgRole','lastMsgAt','updatedAt','status','visibility','pinned','trashedAt'])
         && isValidConversationUpdate();
 
-      // Sem delete — use status: 'deleted'
-      allow delete: if false;
+      // Hard delete: permitido apenas se a conversa já está na lixeira
+      // Tripla verificação: dono + status='trash' + trashedAt existe como timestamp
+      allow delete: if isConversationOwner()
+        && resource.data.status == 'trash'
+        && resource.data.trashedAt is timestamp;
 
       // =======================================================
       // ENTRIES: conversations/{conversationId}/entries/{entryId}
@@ -170,8 +195,11 @@ service cloud.firestore {
         allow create: if isValidEntry()
           && isParentConversationOwner(conversationId);
 
-        // Entries são imutáveis após criação
-        allow update: if false;
+        // Entries são imutáveis exceto para marcar 'superseded: true' (edição de mensagem)
+        // O campo só pode ir para true — nunca reverter. Implementa soft-delete de entry.
+        allow update: if isParentConversationOwner(conversationId)
+          && isValidEntrySupersede();
+
         allow delete: if false;
       }
     }

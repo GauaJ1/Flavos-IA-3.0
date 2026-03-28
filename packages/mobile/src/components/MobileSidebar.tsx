@@ -7,10 +7,12 @@ import {
   View, Pressable, Animated, StyleSheet,
   ScrollView, TouchableWithoutFeedback, Image, Modal,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import { useAuth, useChat } from '@flavos/shared';
 import { Text } from './Text';
+import { MobileTrashPanel } from './MobileTrashPanel';
 import type { ConversationMeta } from '@flavos/shared';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -111,12 +113,16 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
   const { theme, mode, toggleTheme } = useTheme();
   const { logout, user } = useAuth();
   const {
-    conversations, currentConversationId,
+    conversations, trashedConversations, currentConversationId,
     loadConversations, loadConversation, unsubscribeAll, pinConversation,
+    trashConversation, restoreConversation, hardDeleteConversation, listenTrash,
   } = useChat();
   const c = theme.colors;
+  const insets = useSafeAreaInsets();
 
   const [longPressedConv, setLongPressedConv] = useState<ConversationMeta | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showTrash, setShowTrash] = useState(false);
 
   // Animações de entrada/saída
   const translateX    = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
@@ -125,7 +131,10 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
 
   // Inicia listener realtime ao logar
   useEffect(() => {
-    if (user) loadConversations();
+    if (user) {
+      loadConversations();
+      listenTrash();
+    }
   }, [user?.id]);
 
   useEffect(() => {
@@ -170,8 +179,13 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
       <Animated.View
         style={[
           styles.sidebar,
-          { backgroundColor: c.surfaceVariant, borderRightColor: c.border,
-            transform: [{ translateX }, { scaleX: sidebarScale }, { scaleY: sidebarScale }] },
+          {
+            backgroundColor: c.surfaceVariant,
+            borderRightColor: c.border,
+            paddingTop: insets.top,
+            paddingBottom: Math.max(insets.bottom, 16),
+            transform: [{ translateX }, { scaleX: sidebarScale }, { scaleY: sidebarScale }],
+          },
         ]}
       >
         {/* Cabeçalho com info do usuário */}
@@ -253,6 +267,28 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
             </Text>
           </Pressable>
 
+          {/* Botão Lixeira com badge */}
+          <Pressable
+            onPress={() => setShowTrash(true)}
+            style={({ pressed }) => [styles.actionBtn, pressed && { backgroundColor: c.background }]}
+            accessibilityLabel="Lixeira"
+          >
+            <MaterialIcons name="delete" size={22} color={c.textSecondary} />
+            <Text weight="medium" style={[styles.actionText, { color: c.textSecondary, flex: 1 }]}>Lixeira</Text>
+            {trashedConversations.length > 0 && (
+              <View style={{
+                minWidth: 18, height: 18, borderRadius: 9,
+                backgroundColor: c.error,
+                alignItems: 'center', justifyContent: 'center',
+                paddingHorizontal: 5,
+              }}>
+                <Text style={{ fontSize: 10, color: '#fff', fontWeight: '700' as any }}>
+                  {trashedConversations.length}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+
           <Pressable
             onPress={handleLogout}
             style={({ pressed }) => [styles.actionBtn, pressed && { backgroundColor: c.background }]}
@@ -268,7 +304,7 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
           visible={!!longPressedConv}
           transparent
           animationType="fade"
-          onRequestClose={() => setLongPressedConv(null)}
+          onRequestClose={() => { setLongPressedConv(null); setConfirmDelete(false); }}
         >
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center' }}>
             <TouchableWithoutFeedback onPress={() => setLongPressedConv(null)}>
@@ -319,8 +355,32 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
                   </Text>
                 </Pressable>
 
+                {/* Divisor */}
+                <View style={{ height: 1, backgroundColor: c.border, marginHorizontal: 10, marginVertical: 2 }} />
+
+                {/* Mover para lixeira — 1 toque (reversível via Lixeira) */}
                 <Pressable
-                  onPress={() => setLongPressedConv(null)}
+                  onPress={() => {
+                    trashConversation(longPressedConv.id);
+                    setLongPressedConv(null);
+                    setConfirmDelete(false);
+                  }}
+                  style={({ pressed }) => [
+                    { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 14 },
+                    pressed && { backgroundColor: c.background }
+                  ]}
+                >
+                  <MaterialIcons name="delete" size={20} color={c.error} />
+                  <Text weight="medium" style={{ fontSize: 15, color: c.error }}>
+                    Mover para lixeira
+                  </Text>
+                </Pressable>
+
+                {/* Divisor */}
+                <View style={{ height: 1, backgroundColor: c.border, marginHorizontal: 10, marginVertical: 2 }} />
+
+                <Pressable
+                  onPress={() => { setLongPressedConv(null); setConfirmDelete(false); }}
                   style={({ pressed }) => [
                     { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 14 },
                     pressed && { backgroundColor: c.background }
@@ -336,6 +396,15 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
           </View>
         </Modal>
 
+        {/* MobileTrashPanel */}
+        <MobileTrashPanel
+          visible={showTrash}
+          conversations={trashedConversations}
+          onRestore={restoreConversation}
+          onHardDelete={hardDeleteConversation}
+          onClose={() => setShowTrash(false)}
+        />
+
       </Animated.View>
     </>
   );
@@ -343,26 +412,26 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onNewCha
 
 const styles = StyleSheet.create({
   overlay:  { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10 },
-  sidebar:  { position: 'absolute', top: 0, left: 0, bottom: 0, width: SIDEBAR_WIDTH, zIndex: 20, borderRightWidth: 1, paddingHorizontal: 14, paddingBottom: 24, flexDirection: 'column' },
-  userRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16, paddingTop: 52, borderBottomWidth: 1, marginBottom: 12 },
+  sidebar:  { position: 'absolute', top: 0, left: 0, bottom: 0, width: SIDEBAR_WIDTH, zIndex: 20, borderRightWidth: 1, paddingHorizontal: 14, flexDirection: 'column' },
+  userRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, marginBottom: 12, borderBottomWidth: 1 },
   userAvatar: { width: 36, height: 36, borderRadius: 18 },
   userAvatarPlaceholder: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   userInfo: { flex: 1 },
   userName:  { fontSize: 14 },
   userEmail: { fontSize: 11, marginTop: 1 },
-  newChatBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 20, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 16 },
+  newChatBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 14, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 16 },
   newChatText: { fontSize: 14 },
-  sectionLabel: { fontSize: 10, letterSpacing: 1.2, paddingLeft: 8, marginBottom: 8 },
+  sectionLabel: { fontSize: 10, letterSpacing: 1.2, paddingLeft: 8, marginBottom: 8, opacity: 0.55 },
   chatList: { flex: 1 },
   emptyText: { fontSize: 13, textAlign: 'center', marginTop: 20 },
   chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: 10,
     borderRadius: 12,
-    marginBottom: 1,
+    marginBottom: 2,
   },
   letterIcon: {
     width: 34,

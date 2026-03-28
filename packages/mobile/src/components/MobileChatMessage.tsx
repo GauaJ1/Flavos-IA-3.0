@@ -3,7 +3,7 @@
 // ===================================================
 
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Image, StyleSheet, Pressable, Linking, ScrollView, Animated } from 'react-native';
+import { View, Image, StyleSheet, Pressable, Linking, ScrollView, Animated, Modal, TextInput, TouchableWithoutFeedback, KeyboardAvoidingView, Platform } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -59,6 +59,8 @@ const MobileVideoPlayer = ({ att }: { att: MediaAttachment }) => {
 // Renderizador custom nativo para Blocos de Código (Mobile)
 const MobileCodeBlock = ({ node, c }: any) => {
   const [copied, setCopied] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  
   const language = node.sourceInfo || 'code';
   const rawCode = String(node.content || '').replace(/\n$/, '');
 
@@ -84,39 +86,60 @@ const MobileCodeBlock = ({ node, c }: any) => {
   };
 
   return (
-    <View key={node.key} style={{ backgroundColor: dracula.bg, borderRadius: 10, marginVertical: 8, overflow: 'hidden', borderWidth: 1, borderColor: c.border }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: dracula.header, paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border }}>
-        <Text style={{ fontSize: 12, color: dracula.fg, fontWeight: '600' }}>{language}</Text>
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          <Pressable onPress={handleCopy} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: 0.8 }}>
-            <MaterialIcons name={copied ? "check" : "content-copy"} size={14} color={dracula.fg} />
-            <Text style={{ fontSize: 12, color: dracula.fg }}>{copied ? 'Copiado' : 'Copiar'}</Text>
+    <View key={node.key} style={{ backgroundColor: dracula.bg, borderRadius: 10, marginVertical: 8, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
+      {/* Header - Mac OS style + Dracula */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: dracula.header, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' }}>
+        {/* Mac dots & Language */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={{ flexDirection: 'row', gap: 5 }}>
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#ff5f56' }} />
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#ffbd2e' }} />
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#27c93f' }} />
+          </View>
+          <Text style={{ fontSize: 11, color: 'rgba(248,248,242,0.6)', fontWeight: '600', letterSpacing: 0.5 }}>{language}</Text>
+        </View>
+
+        {/* Actions */}
+        <View style={{ flexDirection: 'row', gap: 14 }}>
+          <Pressable onPress={() => setIsMinimized(!isMinimized)} hitSlop={10} style={{ opacity: 0.7 }}>
+            <MaterialIcons name={isMinimized ? "unfold-more" : "unfold-less"} size={16} color={dracula.fg} />
           </Pressable>
-          <Pressable onPress={handleDownload} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: 0.8 }}>
-            <MaterialIcons name="file-download" size={14} color={dracula.fg} />
-            <Text style={{ fontSize: 12, color: dracula.fg }}>Baixar</Text>
+          <Pressable onPress={handleCopy} hitSlop={10} style={{ opacity: 0.7 }}>
+            <MaterialIcons name={copied ? "check" : "content-copy"} size={14} color={dracula.fg} />
+          </Pressable>
+          <Pressable onPress={handleDownload} hitSlop={10} style={{ opacity: 0.7 }}>
+            <MaterialIcons name="file-download" size={16} color={dracula.fg} />
           </Pressable>
         </View>
       </View>
-      <ScrollView horizontal bounces={false} style={{ padding: 12 }}>
-        <Text style={{ fontFamily: 'monospace', color: dracula.fg, fontSize: 13 }}>
-          {highlightCode(rawCode, Text)}
-        </Text>
-      </ScrollView>
+      
+      {/* Code Content */}
+      {!isMinimized && (
+        <ScrollView horizontal bounces={false} contentContainerStyle={{ padding: 14 }}>
+          <Text style={{ fontFamily: 'monospace', color: dracula.fg, fontSize: 13, lineHeight: 18 }}>
+            {highlightCode(rawCode, Text)}
+          </Text>
+        </ScrollView>
+      )}
     </View>
   );
 };
 
 interface MobileChatMessageProps {
   message: Message;
+  onEdit?: (messageId: string, newContent: string) => void;
 }
 
-const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message }) => {
+const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message, onEdit }) => {
   const isUser = message.role === 'user';
   const { theme } = useTheme();
   const { user } = useAuth();
   const c = theme.colors;
   const [showThoughts, setShowThoughts] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editValue, setEditValue] = useState(message.content);
+  const [showEditIcon, setShowEditIcon] = useState(false);
+  const editIconTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasThoughts = !isUser && !!message.thoughts;
   const hasAttachments = !!(message.attachments?.length || message.attachmentsMeta?.length);
 
@@ -150,24 +173,24 @@ const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message }) => {
     ) ?? []),
   ];
 
-  // Markdown styles specifically crafted for the Outfit font + our dark/light palettes
+  // Markdown styles optimized for Outfit font
   const mdStyles = {
-    body: { color: c.aiBubbleText, fontFamily: 'Outfit_400Regular', fontSize: 15, lineHeight: 23 },
-    heading1: { color: c.text, fontFamily: 'Outfit_700Bold', fontSize: 20, marginTop: 8, marginBottom: 4 },
-    heading2: { color: c.text, fontFamily: 'Outfit_600SemiBold', fontSize: 17, marginTop: 6, marginBottom: 3 },
-    heading3: { color: c.text, fontFamily: 'Outfit_600SemiBold', fontSize: 15, marginTop: 4, marginBottom: 2 },
+    body: { color: c.aiBubbleText, fontFamily: 'Outfit_400Regular', fontSize: 15.5, lineHeight: 24 },
+    heading1: { color: c.text, fontFamily: 'Outfit_700Bold', fontSize: 20, marginTop: 10, marginBottom: 5 },
+    heading2: { color: c.text, fontFamily: 'Outfit_600SemiBold', fontSize: 17, marginTop: 8, marginBottom: 4 },
+    heading3: { color: c.text, fontFamily: 'Outfit_600SemiBold', fontSize: 15, marginTop: 6, marginBottom: 3 },
     strong: { fontFamily: 'Outfit_700Bold', color: c.text },
     em: { fontFamily: 'Outfit_300Light', color: c.text, fontStyle: 'italic' as const },
-    bullet_list: { marginVertical: 4 },
-    ordered_list: { marginVertical: 4 },
-    bullet_list_icon: { color: c.primary, marginTop: 4, marginRight: 6 },
-    list_item: { marginVertical: 2 },
+    bullet_list: { marginVertical: 5 },
+    ordered_list: { marginVertical: 5 },
+    bullet_list_icon: { color: c.primary, marginTop: 5, marginRight: 6 },
+    list_item: { marginVertical: 3 },
     code_inline: {
       fontFamily: 'monospace',
       backgroundColor: c.surfaceVariant,
       color: c.primary,
       borderRadius: 4,
-      paddingHorizontal: 4,
+      paddingHorizontal: 5,
       paddingVertical: 1,
       fontSize: 13,
     },
@@ -187,10 +210,15 @@ const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message }) => {
       borderLeftColor: c.primary,
       borderLeftWidth: 3,
       paddingLeft: 10,
-      marginVertical: 4,
+      marginVertical: 5,
     },
     blockquote_text: { color: c.textSecondary, fontStyle: 'italic' as const },
-    paragraph: { marginTop: 2, marginBottom: 2 },
+    paragraph: { marginTop: 3, marginBottom: 3 },
+    hr: { borderColor: c.border, borderTopWidth: 1, marginVertical: 10 },
+    table: { borderWidth: 1, borderColor: c.border, borderRadius: 8, marginVertical: 6 },
+    thead: { backgroundColor: c.surfaceVariant },
+    td: { borderColor: c.border, padding: 6 },
+    th: { borderColor: c.border, padding: 6, fontFamily: 'Outfit_600SemiBold' },
   };
 
   return (
@@ -204,15 +232,108 @@ const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message }) => {
         />
       )}
 
+      {/* Edit Modal */}
+      {isUser && onEdit && (
+        <Modal
+          visible={showEditModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowEditModal(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setShowEditModal(false)}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback>
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+                  <View style={[styles.editModal, { backgroundColor: c.surface ?? c.surfaceVariant, borderColor: c.border }]}>
+                    <Text style={{ color: c.textSecondary, fontSize: 12, marginBottom: 10, fontWeight: '600', letterSpacing: 0.3 }}>
+                      EDITAR MENSAGEM
+                    </Text>
+                    <TextInput
+                      value={editValue}
+                      onChangeText={setEditValue}
+                      multiline
+                      style={[styles.editInput, {
+                        color: c.text,
+                        backgroundColor: c.background,
+                        borderColor: c.primary,
+                      }]}
+                      autoFocus
+                      scrollEnabled
+                    />
+                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                      <Pressable
+                        onPress={() => { setEditValue(message.content); setShowEditModal(false); }}
+                        style={[styles.editBtn, { borderColor: c.border, borderWidth: 1 }]}
+                      >
+                        <Text style={{ color: c.textSecondary, fontSize: 14 }}>Cancelar</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => {
+                          const t = editValue.trim();
+                          if (t && t !== message.content && onEdit) onEdit(message.id, t);
+                          setShowEditModal(false);
+                        }}
+                        disabled={!editValue.trim() || editValue.trim() === message.content}
+                        style={[styles.editBtn, {
+                          backgroundColor: c.primary,
+                          opacity: (!editValue.trim() || editValue.trim() === message.content) ? 0.5 : 1,
+                          flex: 1,
+                        }]}
+                      >
+                        <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>Salvar</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                </KeyboardAvoidingView>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+      )}
+
+      {/* Edit pencil — aparece fora do bubble após long-press */}
+      {isUser && showEditIcon && onEdit && (
+        <Pressable
+          onPress={() => {
+            if (editIconTimer.current) clearTimeout(editIconTimer.current);
+            setShowEditIcon(false);
+            setEditValue(message.content);
+            setShowEditModal(true);
+          }}
+          style={{
+            alignSelf: 'center',
+            padding: 9,
+            borderRadius: 22,
+            backgroundColor: c.background,
+            borderWidth: 1,
+            borderColor: c.border,
+            marginRight: 8,
+          }}
+        >
+          <MaterialIcons name="edit" size={17} color={c.primary} />
+        </Pressable>
+      )}
+
       {/* Bubble */}
-      <View
-        style={[
-          styles.bubble,
-          isUser
-            ? [styles.bubbleUser, { backgroundColor: c.userBubble }]
-            : [styles.bubbleAI, { backgroundColor: 'transparent' }],
-        ]}
+      <Pressable
+        onLongPress={() => {
+          if (isUser && onEdit && !message.isStreaming) {
+            if (editIconTimer.current) clearTimeout(editIconTimer.current);
+            setShowEditIcon(true);
+            editIconTimer.current = setTimeout(() => setShowEditIcon(false), 3000);
+          }
+        }}
+        delayLongPress={400}
+        style={{ maxWidth: '80%' }}
       >
+        <View
+          style={[
+            styles.bubble,
+            isUser
+              ? [styles.bubbleUser, { backgroundColor: c.userBubble }]
+              : [styles.bubbleAI, { backgroundColor: 'transparent' }],
+          ]}
+        >
         {/* ── Anexos / Attachments ── */}
         {isUser && hasAttachments && (
           <View style={{ marginBottom: message.content ? 8 : 0 }}>
@@ -267,30 +388,38 @@ const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message }) => {
 
         {/* ── Resumo de Pensamentos (Gemini Thinking UI) ── */}
         {hasThoughts && (
-          <View style={{ marginBottom: 12 }}>
-            <Pressable 
-              style={{ flexDirection: 'row', alignItems: 'center', opacity: 0.8 }}
+          <View style={{ marginBottom: 10 }}>
+            <Pressable
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: 0.5 }}
               onPress={() => setShowThoughts((prev: boolean) => !prev)}
+              hitSlop={8}
             >
-              <Text style={{ color: c.textSecondary, fontSize: 13, fontStyle: 'italic', fontWeight: '600' }}>
-                ▶ Pensamento
+              <MaterialIcons name="psychology" size={13} color={c.textSecondary} />
+              <Text style={{ color: c.textSecondary, fontSize: 12, fontStyle: 'italic' }}>
+                Pensamento
               </Text>
+              <MaterialIcons
+                name={showThoughts ? 'expand-less' : 'expand-more'}
+                size={14}
+                color={c.textSecondary}
+              />
             </Pressable>
-            
+
             {showThoughts && (
-              <View style={{ 
-                marginTop: 6, 
-                marginLeft: 4, 
-                paddingLeft: 10, 
-                borderLeftWidth: 2, 
-                borderLeftColor: c.border 
+              <View style={{
+                marginTop: 6,
+                paddingLeft: 10,
+                borderLeftWidth: 1.5,
+                borderLeftColor: `${c.border}`,
+                opacity: 0.5,
               }}>
-                <Text style={{ color: c.textSecondary, fontSize: 13, lineHeight: 20, opacity: 0.8 }}>
+                <Text style={{ color: c.textSecondary, fontSize: 12.5, lineHeight: 19 }}>
                   {message.thoughts}
                 </Text>
               </View>
             )}
           </View>
+
         )}
 
         {isUser ? (
@@ -350,7 +479,8 @@ const MobileChatMessage: React.FC<MobileChatMessageProps> = ({ message }) => {
             </View>
           </View>
         )}
-      </View>
+        </View>
+      </Pressable>
 
       {/* Avatar do Usuário */}
       {isUser && (
@@ -374,9 +504,9 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 12,
   },
   rowUser: {
     justifyContent: 'flex-end',
@@ -399,18 +529,16 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   bubble: {
-    maxWidth: '78%',
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
   bubbleUser: {
-    borderRadius: 16,
+    borderRadius: 18,
     borderBottomRightRadius: 4,
   },
   bubbleAI: {
     borderRadius: 0,
     paddingLeft: 0,
-    borderBottomLeftRadius: 4,
     borderWidth: 0,
     padding: 0,
     backgroundColor: 'transparent',
@@ -460,6 +588,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 12,
     borderWidth: 1,
+  },
+  // ── Edit modal styles ────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+    paddingBottom: 24,
+  },
+  editModal: {
+    marginHorizontal: 16,
+    borderRadius: 18,
+    padding: 20,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  editInput: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 15,
+    lineHeight: 22,
+    minHeight: 80,
+    maxHeight: 200,
+    textAlignVertical: 'top',
+  },
+  editBtn: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: 12,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
 });
 

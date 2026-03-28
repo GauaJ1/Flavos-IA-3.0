@@ -9,6 +9,7 @@ import { ChatMessage } from './ChatMessage';
 interface MessageListProps {
   messages: Message[];
   isTyping?: boolean;
+  onEditMessage?: (messageId: string, newContent: string) => void;
   /** Platform-specific styles */
   style?: {
     container?: React.CSSProperties;
@@ -25,6 +26,7 @@ interface MessageListProps {
 export const MessageList: React.FC<MessageListProps> = ({
   messages,
   isTyping = false,
+  onEditMessage,
   style,
 }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -51,24 +53,28 @@ export const MessageList: React.FC<MessageListProps> = ({
             alignItems: 'center',
             justifyContent: 'center',
             height: '100%',
-            opacity: 0.5,
+            opacity: 0.45,
             textAlign: 'center',
             padding: '40px 20px',
             ...style?.emptyState,
           }}
         >
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>💬</div>
-          <p style={{ fontSize: '16px', color: '#9494a8' }}>
+          <div style={{ fontSize: '44px', marginBottom: '12px' }}>💬</div>
+          <p style={{ fontSize: '15px', color: 'var(--text)' }}>
             Comece uma conversa com a IA!
           </p>
-          <p style={{ fontSize: '13px', color: '#6a6a80', marginTop: '8px' }}>
-            Powered by Gemini 3.1-flash
+          <p style={{ fontSize: '12.5px', color: 'var(--text-sec)', marginTop: '6px' }}>
+            Powered by Gemini
           </p>
         </div>
       )}
 
       {messages.map((msg) => (
-        <ChatMessage key={msg.id} message={msg} />
+        <ChatMessage
+          key={msg.id}
+          message={msg}
+          onEdit={msg.role === 'user' ? onEditMessage : undefined}
+        />
       ))}
 
       {/* Indicador de digitação — só aparece se não houver mensagem em streaming já visível */}
@@ -77,8 +83,8 @@ export const MessageList: React.FC<MessageListProps> = ({
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 16,
-            padding: '16px 20px',
+            gap: 14,
+            padding: '12px 20px',
             maxWidth: 980,
             margin: '0 auto',
             width: '100%',
@@ -96,15 +102,10 @@ export const MessageList: React.FC<MessageListProps> = ({
               flexShrink: 0,
             }}
           />
-          <div
-            style={{
-              padding: '6px 0',
-              color: 'var(--text-sec)',
-              fontSize: '1rem',
-              fontStyle: 'italic',
-            }}
-          >
-            <span className="typing-indicator">Pensando...</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, paddingTop: 4 }}>
+            <span className="typing-dot" />
+            <span className="typing-dot" />
+            <span className="typing-dot" />
           </div>
         </div>
       )}

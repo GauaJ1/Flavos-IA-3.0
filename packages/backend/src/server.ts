@@ -7,12 +7,16 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import chatRouter from './routes/chat.js';
+import adminRouter from './routes/admin.js';
 
 // Carrega variáveis de ambiente
 dotenv.config({ path: '../../.env' });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Trust the first proxy (e.g., Nginx, Vercel) so `req.ip` is correct and rate limiters work natively.
+app.set('trust proxy', 1);
 
 // ===================================================
 // Middlewares
@@ -62,6 +66,27 @@ const chatLimiter = rateLimit({
 });
 app.use('/api/chat', chatLimiter);
 app.use('/api/chat', chatRouter);
+
+// Admin — rate limit ultra-restrito (3 req/min)
+// Protege contra brute-force do CLEANUP_SECRET
+// NUNCA expor este endpoint publicamente — apenas cron jobs autorizados
+const adminLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    audit('admin_rate_limit', {
+      route: req.path,
+      status: 429,
+      ip: req.ip ?? '',
+      detail: 'Rate limit excedido — possível tentativa de brute-force.',
+    });
+    res.status(429).json({ error: 'Too many requests.' });
+  },
+});
+app.use('/api/admin', adminLimiter);
+app.use('/api/admin', adminRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

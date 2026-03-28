@@ -2,11 +2,12 @@
 // Flavos IA 3.0 — Sidebar (Animações + Pin Mode)
 // ===================================================
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useTheme } from '../hooks/useTheme';
 import { useAuth } from '../hooks/useAuth';
 import { useChat } from '../hooks/useChat';
 import { useSidebar } from '../hooks/useSidebar';
+import { TrashPanel } from './TrashPanel';
 import type { ConversationMeta } from '../types';
 
 /** Converte timestamp (ms) para texto relativo: "agora", "há 5 min", "ontem", etc. */
@@ -34,17 +35,35 @@ export const Sidebar: React.FC = () => {
   const { isOpen, isPinned, open, close, toggle, togglePin } = useSidebar();
   const {
     clearMessages, loadConversations, loadConversation,
-    unsubscribeAll, conversations, currentConversationId, pinConversation,
+    unsubscribeAll, conversations, trashedConversations, currentConversationId, pinConversation,
+    trashConversation, restoreConversation, hardDeleteConversation, listenTrash,
   } = useChat();
   const c = theme.colors;
   const SIDEBAR_W = 268;
 
   // 3-dot menu state
-  const [hoveredId, setHoveredId]   = useState<string | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [hoveredId, setHoveredId]       = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId]     = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => { if (user) loadConversations(); }, [user?.id]);
+  // Lixeira + Toast
+  const [showTrash, setShowTrash] = useState(false);
+  const [toast, setToast] = useState<{ message: string; undoId?: string } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, undoId?: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ message, undoId });
+    toastTimer.current = setTimeout(() => setToast(null), 4000);
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      loadConversations();
+      listenTrash();
+    }
+  }, [user?.id]);
 
   // Close menu on outside click
   useEffect(() => {
@@ -52,6 +71,7 @@ export const Sidebar: React.FC = () => {
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setOpenMenuId(null);
+        setConfirmDeleteId(null);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -97,7 +117,10 @@ export const Sidebar: React.FC = () => {
           background: 'none', border: 'none', cursor: 'pointer',
           padding: 8, borderRadius: 8, color: c.text,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'left 0.28s cubic-bezier(0.4,0,0.2,1)',
+          transition: 'left 0.28s cubic-bezier(0.4,0,0.2,1), opacity 0.2s',
+          // Quando a lixeira está aberta, esconde o X sem removê-lo do DOM
+          opacity: showTrash ? 0 : 1,
+          pointerEvents: showTrash ? 'none' : 'all',
         }}
       >
         {/* Animated hamburger → X using 3 bars */}
@@ -349,16 +372,18 @@ export const Sidebar: React.FC = () => {
                           border: `1px solid ${c.border}`,
                           borderRadius: 10,
                           boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-                          minWidth: 160,
+                          minWidth: 168,
                           padding: '4px',
                           animation: 'convFadeIn 150ms ease-out both',
                         }}
                       >
+                        {/* Pin / Unpin */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             pinConversation(conv.id, !conv.pinned);
                             setOpenMenuId(null);
+                            setConfirmDeleteId(null);
                           }}
                           style={{
                             width: '100%', display: 'flex', alignItems: 'center', gap: 9,
@@ -372,6 +397,33 @@ export const Sidebar: React.FC = () => {
                           <span className="material-symbols-rounded" style={{ fontSize: 16, color: c.primary, fontVariationSettings: conv.pinned ? "'FILL' 1" : "'FILL' 0" }}>push_pin</span>
                           {conv.pinned ? 'Desafixar' : 'Fixar conversa'}
                         </button>
+
+                        {/* Divider */}
+                        <div style={{ height: 1, background: c.border, margin: '3px 6px' }} />
+
+                        {/* Move to Trash — sem confirmation inline (tem toast com Desfazer) */}
+                        {
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              trashConversation(conv.id);
+                              setOpenMenuId(null);
+                              setConfirmDeleteId(null);
+                              showToast('Conversa movida para a lixeira', conv.id);
+                            }}
+                            style={{
+                              width: '100%', display: 'flex', alignItems: 'center', gap: 9,
+                              padding: '8px 10px', borderRadius: 7, border: 'none',
+                              background: 'none', color: c.error, cursor: 'pointer',
+                              fontSize: 13, fontFamily: 'inherit', textAlign: 'left',
+                            }}
+                            onMouseOver={(e) => { (e.currentTarget as HTMLElement).style.background = `${c.error}14`; }}
+                            onMouseOut={(e) => { (e.currentTarget as HTMLElement).style.background = 'none'; }}
+                          >
+                            <span className="material-symbols-rounded" style={{ fontSize: 16, color: c.error }}>delete</span>
+                            Mover para lixeira
+                          </button>
+                        }
                       </div>
                     )}
                   </div>
@@ -401,6 +453,34 @@ export const Sidebar: React.FC = () => {
             </div>
           )}
 
+          {/* Botão Lixeira com badge */}
+          <button
+            onClick={() => setShowTrash(true)}
+            style={{ ...navBtn, position: 'relative' }}
+            onMouseOver={(e) => ((e.currentTarget as HTMLElement).style.background = c.background)}
+            onMouseOut={(e) => ((e.currentTarget as HTMLElement).style.background = 'transparent')}
+          >
+            <span className="material-symbols-rounded" style={{ fontSize: 18 }}>delete</span>
+            Lixeira
+            {trashedConversations.length > 0 && (
+              <span style={{
+                marginLeft: 'auto',
+                minWidth: 18, height: 18,
+                borderRadius: 9,
+                background: c.error,
+                color: '#fff',
+                fontSize: 10.5,
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0 5px',
+              }}>
+                {trashedConversations.length}
+              </span>
+            )}
+          </button>
+
           <button
             onClick={toggleTheme}
             style={navBtn}
@@ -423,7 +503,62 @@ export const Sidebar: React.FC = () => {
             Sair
           </button>
         </div>
+
+        {/* TrashPanel — overlay com slide-in da direita */}
+        {showTrash && (
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 10,
+            background: 'var(--bg)',
+            animation: 'trashSlideIn 0.22s cubic-bezier(0.22,1,0.36,1) both',
+          }}>
+            <style>{`@keyframes trashSlideIn{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}`}</style>
+            <TrashPanel
+              conversations={trashedConversations}
+              onRestore={restoreConversation}
+              onHardDelete={hardDeleteConversation}
+              onClose={() => setShowTrash(false)}
+            />
+          </div>
+        )}
       </aside>
+
+      {/* Toast de lixeira — glassmorphism premium */}
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 9999,
+          display: 'flex', alignItems: 'center', gap: 14,
+          background: mode === 'dark' ? 'rgba(20,26,40,0.92)' : 'rgba(25,30,45,0.90)',
+          color: '#fff',
+          padding: '10px 16px 10px 18px',
+          borderRadius: 12,
+          fontSize: '0.875rem', fontFamily: 'Outfit, sans-serif',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.40), 0 0 0 1px rgba(255,255,255,0.07)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          animation: 'convFadeIn 180ms cubic-bezier(0.22,1,0.36,1) both',
+          whiteSpace: 'nowrap',
+        }}>
+          <span style={{ opacity: 0.9 }}>{toast.message}</span>
+          {toast.undoId && (
+            <button
+              onClick={async () => {
+                await restoreConversation(toast.undoId!);
+                setToast(null);
+              }}
+              style={{
+                background: 'none', border: 'none', color: c.primary,
+                cursor: 'pointer', fontWeight: 700, fontSize: '0.875rem',
+                fontFamily: 'inherit', padding: '2px 6px',
+                borderRadius: 6,
+                transition: 'opacity 0.15s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
+              onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+            >Desfazer</button>
+          )}
+        </div>
+      )}
     </>
   );
 };
