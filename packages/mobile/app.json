@@ -7,6 +7,7 @@
     "userInterfaceStyle": "automatic",
     "scheme": "flavosia",
     "newArchEnabled": true,
+    "entryPoint": "./index.js",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.flavos.ia"
