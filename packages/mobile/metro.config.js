@@ -19,7 +19,7 @@ const config = getDefaultConfig(__dirname);
 
 // ─── Monorepo: Watchfolders ─────────────────────────────────────────────────
 // Instrui o Metro a vigiar as mudanças nos pacotes fora desta pasta
-config.watchFolders = [monorepoRoot];
+config.watchFolders = [...(config.watchFolders || []), monorepoRoot];
 
 // ─── Monorepo: Resolver ─────────────────────────────────────────────────────
 // O resolver precisa procurar node_modules na pasta do pacote E na raiz
