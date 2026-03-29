@@ -28,7 +28,14 @@ app.use(
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps)
       // or from localhost/local IP addresses
-      if (!origin || origin.includes('localhost') || origin.startsWith('http://192.168.') || origin.startsWith('http://10.')) {
+      if (
+        !origin || 
+        origin.includes('localhost') || 
+        origin.startsWith('http://192.168.') || 
+        origin.startsWith('http://10.') ||
+        origin.endsWith('.pages.dev') || // Cloudflare Pages preview/branch
+        origin === 'https://flavos-ia.pages.dev' // Domínio final Cloudflare
+      ) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));

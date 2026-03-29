@@ -7,8 +7,9 @@
  * Em produção, será substituída pela URL do deploy.
  */
 export const API_BASE_URL =
-  (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_API_URL) ||
-  (typeof process !== 'undefined' && process.env.VITE_API_URL) ||
+  (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_API_URL) || // Mobile (Expo)
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || // Web (Vite)
+  (typeof process !== 'undefined' && process.env.VITE_API_URL) || // Web (Dev/CJS)
   'http://localhost:3001';
 
 /**
