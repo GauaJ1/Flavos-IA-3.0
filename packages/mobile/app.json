@@ -4,10 +4,15 @@
     "slug": "flavos-ia",
     "version": "3.0.0",
     "orientation": "portrait",
+    "icon": "./assets/Flavos_3.png",
+    "splash": {
+      "image": "./assets/Flavos_3.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a0f"
+    },
     "userInterfaceStyle": "automatic",
     "scheme": "flavosia",
     "newArchEnabled": true,
-    "entryPoint": "./index.js",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.flavos.ia"
