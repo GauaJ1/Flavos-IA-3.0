@@ -8,7 +8,8 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PROJECT_ROOT": "packages/mobile"
+        "EXPO_PROJECT_ROOT": "packages/mobile",
+        "EXPO_PUBLIC_API_URL": "https://flavosia-api.duckdns.org"
       }
     },
     "preview": {
@@ -17,13 +18,15 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PROJECT_ROOT": "packages/mobile"
+        "EXPO_PROJECT_ROOT": "packages/mobile",
+        "EXPO_PUBLIC_API_URL": "https://flavosia-api.duckdns.org"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PROJECT_ROOT": "packages/mobile"
+        "EXPO_PROJECT_ROOT": "packages/mobile",
+        "EXPO_PUBLIC_API_URL": "https://flavosia-api.duckdns.org"
       }
     }
   },
