@@ -34,7 +34,7 @@ app.use(
         origin.startsWith('http://192.168.') || 
         origin.startsWith('http://10.') ||
         origin.endsWith('.pages.dev') || // Cloudflare Pages preview/branch
-        origin === 'https://flavos-ia.pages.dev' // Domínio final Cloudflare
+        origin === 'https://flavos-ia-3-0.pages.dev' // Domínio final Cloudflare
       ) {
         callback(null, true);
       } else {
@@ -47,8 +47,8 @@ app.use(
 );
 
 // JSON body parser — limite elevado para suportar imagens em base64 (inline)
-app.use(express.json({ limit: '20mb' }));
-app.use(express.urlencoded({ limit: '20mb', extended: true }));
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ limit: '25mb', extended: true }));
 
 // TODO: Firebase — Adicionar middleware de autenticação
 // import { authMiddleware } from './middleware/auth.js';
