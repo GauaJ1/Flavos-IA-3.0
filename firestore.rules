@@ -107,6 +107,17 @@ service cloud.firestore {
     // isValidConversationUpdate()
     // Valida tipo de cada campo que pode ser alterado.
     // Impede updates com valores malformados mesmo em campos autorizados.
+    //
+    // Re: trashedAt:
+    //   • Move para trash   → trashedAt = serverTimestamp() [is timestamp: OK]
+    //   • Restore da lixeira → trashedAt removido via deleteField()
+    //     Neste caso, d.trashedAt não existe em request.resource.data.
+    //     A condição (!affected.hasAny(['trashedAt']) || ...) seria verdadeira
+    //     se o campo não existisse em request.resource.data, mas o deleteField()
+    //     ainda aparece no affectedKeys() como chave afetada.
+    //     Por isso distinguimos: se trashedAt está em affectedKeys mas NÃO
+    //     existe em request.resource.data → é uma remoção (deleteField), OK.
+    //     Se existe, deve ser timestamp.
     // ---------------------------------------------------------
     function isValidConversationUpdate() {
       let d = request.resource.data;
@@ -127,9 +138,13 @@ service cloud.firestore {
                || d.updatedAt is timestamp)
           && (!affected.hasAny(['pinned'])
                || d.pinned is bool)
-          // trashedAt: deve ser timestamp se presente, não pode ser definido em status != 'trash'
+          // trashedAt:
+          //   - Não foi alterado: OK
+          //   - Foi removido (deleteField / não existe no novo doc): OK (restore)
+          //   - Foi setado: deve ser timestamp (mover para trash)
           && (!affected.hasAny(['trashedAt'])
-               || d.trashedAt is timestamp);
+               || !('trashedAt' in d)              // deleteField() — campo removido
+               || d.trashedAt is timestamp);        // serverTimestamp() — mover para trash
     }
 
     // =========================================================

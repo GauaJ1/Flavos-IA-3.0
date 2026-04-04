@@ -2,39 +2,48 @@
 // Flavos IA 3.0 — Express Server
 // ===================================================
 
+import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import chatRouter from './routes/chat.js';
 import adminRouter from './routes/admin.js';
+import { audit } from './middleware/logger.js';
+import { requestIdMiddleware } from './middleware/requestId.js';
 
-// Carrega variáveis de ambiente
 dotenv.config({ path: '../../.env' });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Trust the first proxy (e.g., Nginx, Vercel) so `req.ip` is correct and rate limiters work natively.
+// Proxy trust: req.ip reflete o IP real do cliente atrás de Nginx/Cloudflare
 app.set('trust proxy', 1);
 
 // ===================================================
-// Middlewares
+// Middleware de infraestrutura — ordem importa
 // ===================================================
 
-// CORS — permite requisições do frontend e mobile na mesma rede
+// 1. Request ID — primeiro de todos para estar disponível em qualquer log
+app.use(requestIdMiddleware);
+
+// 2. Security headers via helmet
+//    Content-Security-Policy não definida aqui pois este é um backend de API,
+//    não serve HTML. Os defaults do helmet são seguros para APIs JSON.
+app.use(helmet());
+
+// 3. CORS — allowlist explícita, sem wildcard
+//    !origin: mobile apps e curl legítimos não enviam Origin header
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps)
-      // or from localhost/local IP addresses
       if (
-        !origin || 
-        origin.includes('localhost') || 
-        origin.startsWith('http://192.168.') || 
+        !origin ||
+        origin.includes('localhost') ||
+        origin.startsWith('http://192.168.') ||
         origin.startsWith('http://10.') ||
-        origin.endsWith('.pages.dev') || // Cloudflare Pages preview/branch
-        origin === 'https://flavos-ia-3-0.pages.dev' // Domínio final Cloudflare
+        origin === 'https://flavos-ia-3-0.pages.dev'
       ) {
         callback(null, true);
       } else {
@@ -46,21 +55,23 @@ app.use(
   })
 );
 
-// JSON body parser — limite elevado para suportar imagens em base64 (inline)
-app.use(express.json({ limit: '25mb' }));
-app.use(express.urlencoded({ limit: '25mb', extended: true }));
-
-// TODO: Firebase — Adicionar middleware de autenticação
-// import { authMiddleware } from './middleware/auth.js';
-// app.use('/api', authMiddleware);
-
 // ===================================================
-// Routes
+// Body Parsers — estratégia em camadas
+//
+// ORDEM OBRIGATÓRIA:
+//   1. /api/chat com parser dedicado (10mb) → registrado PRIMEIRO
+//   2. parsers globais (512kb) → body-parser pula se req._body === true
+//   3. demais rotas
+//
+// Por que funciona: body-parser marca req._body = true após parsear.
+// O parser global rodando depois vê a flag e chama next() sem re-parsear.
+// Logo, o limite de 512kb NÃO afeta requisições de chat que chegam com base64.
 // ===================================================
 
-import { audit } from './middleware/logger.js';
+// Parser dedicado para chat (imagens em base64)
+const chatBodyParser = express.json({ limit: '10mb' });
 
-// Rate limiting — max 30 mensagens por minuto por IP (Camada 1 — sem autenticação)
+// Rate limit por IP — Camada 1 do chat (Camada 2 por UID fica no router)
 const chatLimiter = rateLimit({
   windowMs: 60_000,
   max: 30,
@@ -71,12 +82,19 @@ const chatLimiter = rateLimit({
     res.status(429).json({ error: 'Muitas requisições. Tente novamente em alguns segundos.' });
   },
 });
-app.use('/api/chat', chatLimiter);
-app.use('/api/chat', chatRouter);
 
-// Admin — rate limit ultra-restrito (3 req/min)
-// Protege contra brute-force do CLEANUP_SECRET
-// NUNCA expor este endpoint publicamente — apenas cron jobs autorizados
+// /api/chat: parser 10mb + rate limit + router — ANTES dos parsers globais
+app.use('/api/chat', chatBodyParser, chatLimiter, chatRouter);
+
+// Parsers globais para admin, health e rotas futuras
+app.use(express.json({ limit: '512kb' }));
+app.use(express.urlencoded({ limit: '256kb', extended: true }));
+
+// ===================================================
+// Admin
+// ===================================================
+
+// 3 req/min — protege contra brute-force do CLEANUP_SECRET
 const adminLimiter = rateLimit({
   windowMs: 60_000,
   max: 3,
@@ -92,39 +110,79 @@ const adminLimiter = rateLimit({
     res.status(429).json({ error: 'Too many requests.' });
   },
 });
-app.use('/api/admin', adminLimiter);
-app.use('/api/admin', adminRouter);
 
+app.use('/api/admin', adminLimiter, adminRouter);
+
+// ===================================================
 // Health check
+// ===================================================
+// Não expõe modelo, versão ou stack — evita fingerprinting
 app.get('/api/health', (_req, res) => {
-  res.json({
-    status: 'ok',
-    version: '3.0.0',
-    model: process.env.GEMINI_MODEL || 'gemini-3.1-flash',
-    timestamp: new Date().toISOString(),
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ===================================================
+// Global Error Handler
+// ===================================================
+// Deve ser o ÚLTIMO middleware registrado.
+// Captura erros lançados por body-parser, CORS e rotas.
+// NUNCA envia stack trace ao cliente em produção.
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const ip = req.ip ?? '';
+
+  if (err.type === 'entity.too.large') {
+    audit('payload_too_large', { route: req.path, status: 413, ip });
+    res.status(413).json({ error: 'Payload muito grande.' });
+    return;
+  }
+
+  if (err.type === 'entity.parse.failed') {
+    audit('json_parse_error', { route: req.path, status: 400, ip });
+    res.status(400).json({ error: 'JSON inválido.' });
+    return;
+  }
+
+  if (err.message === 'Not allowed by CORS') {
+    res.status(403).json({ error: 'CORS: origem não permitida.' });
+    return;
+  }
+
+  audit('unhandled_error', {
+    route: req.path,
+    status: err.status ?? err.statusCode ?? 500,
+    ip,
+    detail: String(err?.message ?? '').slice(0, 200),
   });
+
+  res.status(err.status ?? err.statusCode ?? 500).json({ error: 'Erro interno do servidor.' });
 });
 
 // ===================================================
 // Start Server
 // ===================================================
+// Guard: listen() só é chamado quando este arquivo é executado diretamente.
+// Quando importado como módulo (testes), app é exportado sem subir o servidor,
+// evitando conflito de porta e race conditions nos testes.
 
-app.listen(Number(PORT), '0.0.0.0', () => {
-  console.log('');
-  console.log('🚀 ═══════════════════════════════════════════');
-  console.log(`   Flavos IA 3.0 — Backend Proxy`);
-  console.log(`   Servidor rodando em: http://0.0.0.0:${PORT} (acessível na rede local)`);
-  console.log(`   Modelo: ${process.env.GEMINI_MODEL || 'gemini-3.1-flash'}`);
-  console.log(`   Health: http://localhost:${PORT}/api/health`);
-  console.log('═══════════════════════════════════════════════');
-  console.log('');
+const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 
-  if (!process.env.GEMINI_API_KEY) {
-    console.warn('⚠️  GEMINI_API_KEY não configurada!');
-    console.warn('   Crie um arquivo .env na raiz do monorepo com:');
-    console.warn('   GEMINI_API_KEY=sua_chave_aqui');
-    console.warn('');
-  }
-});
+if (isMain) {
+  app.listen(Number(PORT), '0.0.0.0', () => {
+    process.stdout.write(
+      JSON.stringify({
+        event: 'server_start',
+        ts: new Date().toISOString(),
+        port: PORT,
+        env: process.env.NODE_ENV ?? 'development',
+      }) + '\n'
+    );
+    if (!process.env.GEMINI_API_KEY) {
+      audit('startup_warning', { detail: 'GEMINI_API_KEY não configurada.' });
+    }
+    if (!process.env.VITE_FIREBASE_API_KEY) {
+      audit('startup_warning', { detail: 'VITE_FIREBASE_API_KEY não configurada.' });
+    }
+  });
+}
 
 export default app;

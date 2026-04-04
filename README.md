@@ -1,19 +1,18 @@
-# 🚀 Flavos IA 3.0 – **Phase 4 CONCLUÍDA — Lançamento: 04/04/2026** 🎉  
+# 🚀 Flavos IA 3.0 – **Phase 4 CONCLUÍDA — Lançamento Oficial: 03/04/2026** 🎉  
 
-![Banner](Banner_Beta_tester.png)
+![Banner](Banner%20Release.png)
 
-## ✅ **Fase 4 — 100% Finalizada (29/03/2026)**
+## ✅ **Fase 4 — 100% Finalizada & Hardening Concluído (03/04/2026)**
 
 O ciclo de desenvolvimento do Flavos IA 3.0 está **encerrado**. O projeto atingiu maturidade total — arquitetura resiliente, segurança de nível corporativo, UX *premium* e infraestrutura de produção configurada. Os marcos entregues nesta fase final foram:
 
 - ✅ **Ciclo de Mensagens (Superseded)**: Edição segura de mensagens com árvore lógica de substituição (*superseded pattern*), incluindo suporte a regeneração imediata e autônoma da IA ao editar respostas, sem poluir a timeline do Firestore.
-- ✅ **Lixeira Premium & Automação**: Suporte a *Soft-Delete* e exclusões definitivas (*Hard-Delete*). Visão unificada de Trash na Web/Mobile com suporte a "Restaurar". Endpoint admin para CRON (`/cleanup-trash`) com expiração automática após 4 dias.
-- ✅ **Security Hardening (API+DB)**: Firestore rules blindando injeções *superseded*. Rota administrativa protegida com *Bearer token*, `timingSafeEqual` e *rate limits* anti-bruteforce.
-- ✅ **Resiliência Server & Rate Limit**: Correção de validação IPv6/IPv4 (`trust proxy`). Interceptação inteligente de `429 / RESOURCE_EXHAUSTED` da Gemini API.
+- ✅ **Lixeira Premium & Automação**: Suporte a *Soft-Delete* e exclusões definitivas (*Hard-Delete*). Visão unificada de Trash na Web/Mobile com suporte a "Restaurar". Endpoint admin para CRON (`/cleanup-trash`) atualizado para rodar perfeitamente via DuckDNS.
+- ✅ **Security Hardening Extremo (03/04)**: Parsers em camadas dedicados (512KB global / 10MB isolado para a rota de IA). Middleware de validação anti-abuso no chat (limites rígidos de histórico e base64), Firebase Rules seladas contra modificações arbitrárias no state de lixeira, e rotas administrativas protegidas com `timingSafeEqual`.
+- ✅ **Resiliência Server & Rate Limit**: Correção de validação IPv6/IPv4 (`trust proxy`). Interceptação inteligente de `429 / RESOURCE_EXHAUSTED` da Gemini API, prevenindo falhas em cascata.
 - ✅ **Error Handling Premium**: Sistema `AiError` com banners *Glassmorphism* (web/mobile), retry temporizados com countdown reativo e fallbacks contextuais.
-- ✅ **UI/UX Polish (Web & Mobile)**: Chat Input multiline com `flex-end`, sem sobreposição de teclado. Polimento visual completo em Sidebar, modais e transições.
 - ✅ **Code Blocks Interativos**: Estilo macOS + Dracula theme, toggle minimizar/expandir, cópia e download por linguagem.
-- ✅ **Infraestrutura de Deploy**: Backend configurado com PM2 (650M), Nginx, CORS para Cloudflare Pages e Firebase Admin SDK integrado ao cron job.
+- ✅ **Infraestrutura de Deploy Final**: Backend configurado com PM2 (650M), Helmet, Nginx, política estrita de CORS e Firebase Admin SDK integrado de forma blindada em VPS.
 
 ---
 
@@ -36,13 +35,14 @@ O ciclo de desenvolvimento do Flavos IA 3.0 está **encerrado**. O projeto ating
 - [x] Pin To Top — painéis de fixação cross-platform e persistentes em *storage* global.
 - [x] Persistência fluída de Multi-Temas (*Light/Dark*) sem cintilação na transição.
 
-### 🏁 Fase 4: Polimento Final & Produção (**CONCLUÍDA ✅**)
+### 🏁 Fase 4: Polimento Final, Hardening & Produção (**CONCLUÍDA ✅**)
 - [x] Autenticação Firestore unificada (Email + Social Login).
 - [x] Ciclo Superseded de Edição, Reciclagem de Mensagens (Trash) e automação agendada.
 - [x] UI/UX Flat Polish Master (Inputs expansíveis e reajuste sem redesenho massivo).
+- [x] Defesa em Profundidade contra Payload Excessivo e validação rigorosa de attachments.
 - [x] Rate Limit Intelligence nativos e Sistema Autônomo de Recuperação 429 Error Banners.
-- [x] QA final e hardening de infraestrutura de deploy.
-- [x] **Deploy v1.0 Production — Concluído em 29/03/2026**.
+- [x] QA Rigorosíssimo, Testes Automatizados Node e hardening final de Firestore Rules.
+- [x] **Lançamento Oficial ao Público — 03/04/2026**.
 
 ---
 
@@ -66,7 +66,7 @@ O ciclo de desenvolvimento do Flavos IA 3.0 está **encerrado**. O projeto ating
 | 🔹 Fase 1 | ✅ Concluída | Fundação monorepo, backend seguro e base React/Expo. |
 | 🔸 Fase 2 | ✅ Concluída | Firebase Auth, Sync persistente, Google Grounding e UX transativa Mobile consolidada. |
 | 🔺 Fase 3 | ✅ Concluída | Mídia nativa rica, Uploads fluidos, Gemini Thoughts e personalizações modulares seguras. |
-| 🏁 Fase 4 | ✅ **CONCLUÍDA** | Deploy realizado. Infraestrutura configurada. Anúncio ao público em **04/04/2026**. |
+| 🏁 Fase 4 | ✅ **CONCLUÍDA** | Auditoria de segurança concluída. Infraestrutura fechada. **Lançamento oficial: 03/04/2026.** |
 
 ---
 
@@ -87,8 +87,8 @@ O ciclo de desenvolvimento do Flavos IA 3.0 está **encerrado**. O projeto ating
 
 ![Status](https://img.shields.io/badge/status-produção-brightgreen)
 ![Versão](https://img.shields.io/badge/versão-3.0.0-blueviolet)
-![Lançamento](https://img.shields.io/badge/lançamento-04%2F04%2F2026-success)
+![Lançamento](https://img.shields.io/badge/lançamento-03%2F04%2F2026-success)
 
-**📅 Última atualização:** `29/03/2026`  
+**📅 Última atualização:** `03/04/2026`  
 **🧑‍💻 Desenvolvedor:** Kauã Jorge  
 **🎨 Design:** Flavos IA Team

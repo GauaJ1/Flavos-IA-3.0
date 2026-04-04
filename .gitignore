@@ -38,3 +38,6 @@ npm-debug.log*
 
 # Coverage
 coverage/
+
+# Backups
+packages/backend/src/routes/chat.backup.ts

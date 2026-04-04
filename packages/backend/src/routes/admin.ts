@@ -82,7 +82,9 @@ function getClientIp(req: Request): string {
 
 // =====================================================
 // Middleware: Força método POST estrito
-// Rejeita qualquer outro verbo HTTP nesta rota
+// DEVE ser registrado em router.all() para que verbos
+// não-POST (GET, PUT, DELETE, PATCH) sejam interceptados
+// antes de cair no 404 padrão do Express.
 // =====================================================
 function enforcePostOnly(req: Request, res: Response, next: () => void) {
   if (req.method !== 'POST') {
@@ -90,7 +92,7 @@ function enforcePostOnly(req: Request, res: Response, next: () => void) {
       route: req.path,
       status: 405,
       ip: getClientIp(req),
-      detail: `Método rejeitado: ${req.method}`,
+      detail: `${req.method} ${req.path} — método não permitido`,
     });
     res.status(405).json({ error: 'Method not allowed.' });
     return;
@@ -194,7 +196,10 @@ function requireCleanupSecret(req: Request, res: Response, next: () => void) {
 //
 // NUNCA retorna: conteúdo de mensagens, owners, secrets
 // =====================================================
-router.post('/cleanup-trash', enforcePostOnly, requireCleanupSecret, async (req: Request, res: Response) => {
+// router.all() captura TODOS os verbos HTTP — enforcePostOnly rejeita não-POST com 405.
+// Se fosse router.post(), verbos alternativos cairiam no 404 genérico do Express,
+// perdendo o log de audit e o header Method-Allow correto.
+router.all('/cleanup-trash', enforcePostOnly, requireCleanupSecret, async (req: Request, res: Response) => {
   const startedAt = new Date().toISOString();
   const ip = getClientIp(req);
 

@@ -21,17 +21,12 @@ GEMINI_MODEL=gemini-2.5-flash
 PORT=3001
 
 # URL pública da VPS — o frontend vai chamar este endereço
-# Se tiver Nginx + SSL: https://api.seudominio.com
-# Se for acesso direto por IP:  http://159.112.180.28:3001
-VITE_API_URL=http://159.112.180.28:3001
+# Se tiver Nginx + SSL: https://flavosia-api.duckdns.org
+# Se for acesso direto por IP (LEGADO - NÃO USAR MAIS): http://159.112.180.28:3001
+VITE_API_URL=https://flavosia-api.duckdns.org
 
 # Firebase Web SDK (usado pelo middleware de autenticação do backend)
-VITE_FIREBASE_API_KEY=AIzaSyCK1WXB11sIpmZbOmQ3utYs12MmcnD31-A
-VITE_FIREBASE_AUTH_DOMAIN=flavos-ia-3.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=flavos-ia-3
-VITE_FIREBASE_STORAGE_BUCKET=flavos-ia-3.firebasestorage.app
-VITE_FIREBASE_MESSAGING_SENDER_ID=949324915747
-VITE_FIREBASE_APP_ID=1:949324915747:web:188cab49f769d8e8ff7d96
+FIREBASE CONFIG
 
 FIREBASE_PROJECT_ID=flavos-ia-3
 ```
@@ -40,9 +35,7 @@ FIREBASE_PROJECT_ID=flavos-ia-3
 > Somente necessárias se for ativar o `/api/admin/cleanup-trash`.
 > Gere a chave de serviço em: **Firebase Console → Configurações do Projeto → Contas de Serviço → Gerar nova chave privada**.
 ```env
-CLEANUP_SECRET=3d5e054140e73bd1ccb2fddb195d07d4adc4a26137dcaefefa36e5ecde10bc56
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxx@flavos-ia-3.iam.gserviceaccount.com
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+CLEANUP_SECRET=AQUI"
 ```
 
 ---
@@ -55,14 +48,18 @@ O banco de dados de um serviço de chat pode crescer muito com conversas deletad
 
 1. Crie uma conta no site cron-job.org ou faça login.
 2. Clique em **"Create Cronjob"**.
-3. **URL**: Preencha com a rota de produção do backend:
-   - *Exemplo:* `https://seu-backend.com/api/admin/cleanup-trash`
+3. **URL**: Preencha com a URL atual do backend (DuckDNS + SSL):
+   - `https://flavosia-api.duckdns.org/api/admin/cleanup-trash`
+   - ⚠️ **IMPORTANTE:** A URL antiga `http://159.112.180.28:3001/...` está desatualizada. Se você já tem um cron configurado com ela, acesse o painel do cron-job.org, edite o job existente e troque a URL.
 4. Na parte de cronograma (Execution Schedule), selecione "User-defined" e peça para rodar **a cada 24 horas** ou diariamente de madrugada (Ex: 03:00).
 5. Em **Advanced**:
    - **HTTP method:** Troque para `POST`
    - **HTTP Headers:** Adicione uma nova linha:
      - Header Name: `Authorization`
-     - Header Value: `Bearer 3d5e054140e73bd1ccb2fddb195d07d4adc4a26137dcaefefa36e5ecde10bc56`
+     - Header Value: `Bearer x`
 6. Salve o Cron Job no botão verde (`Create`).
 
-Pronto. Ele fará o post e o backend vai limpar os documentos (max 100/dia, que estavam em 'trash' há mais de 4 dias), cuidando da saúde e tamanho do database automaticamente.
+**Para verificar se o cron está funcionando:**  
+Após salvar, clique em "Test run" no cron-job.org. A resposta deve ser `200 OK` com body `{"status":"success"}`.
+Se retornar `503`: o `CLEANUP_SECRET` não está setado na VPS.  
+Se retornar `403`: o token no header está errado.
