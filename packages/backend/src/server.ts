@@ -165,9 +165,9 @@ app.use((err: any, req: express.Request, res: express.Response, _next: express.N
 // Quando importado como módulo (testes), app é exportado sem subir o servidor,
 // evitando conflito de porta e race conditions nos testes.
 
-const isMain = process.argv[1] === fileURLToPath(import.meta.url);
+const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
 
-if (isMain) {
+if (!isTest) {
   app.listen(Number(PORT), '0.0.0.0', () => {
     process.stdout.write(
       JSON.stringify({
