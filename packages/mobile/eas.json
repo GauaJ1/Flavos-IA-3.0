@@ -36,6 +36,9 @@
     },
     "production": {
       "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
       "env": {
         "EXPO_PROJECT_ROOT": "packages/mobile",
         "EXPO_PUBLIC_API_URL": "https://flavosia-api.duckdns.org",
@@ -45,6 +48,12 @@
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "flavos-ia-3.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "949324915747",
         "EXPO_PUBLIC_FIREBASE_APP_ID": "1:949324915747:web:188cab49f769d8e8ff7d96"
+      }
+    },
+    "apk": {
+      "extends": "production",
+      "android": {
+        "buildType": "apk"
       }
     }
   },

@@ -43,6 +43,7 @@ app.use(
         origin.includes('localhost') ||
         origin.startsWith('http://192.168.') ||
         origin.startsWith('http://10.') ||
+        origin.startsWith('http://15.') ||
         origin === 'https://flavos-ia-3-0.pages.dev'
       ) {
         callback(null, true);
