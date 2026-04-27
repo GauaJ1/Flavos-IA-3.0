@@ -44,7 +44,7 @@ app.use(
         origin.startsWith('http://192.168.') ||
         origin.startsWith('http://10.') ||
         origin.startsWith('http://15.') ||
-        origin === 'https://flavos-ia-3-0.pages.dev'
+        origin === 'https://ia.flavoscompany.xyz'
       ) {
         callback(null, true);
       } else {

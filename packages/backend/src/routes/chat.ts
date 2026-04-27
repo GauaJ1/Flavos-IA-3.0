@@ -14,6 +14,7 @@ import rateLimit from 'express-rate-limit';
 import { genAI, GEMINI_MODEL } from '../config/gemini.js';
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.js';
 import { audit } from '../middleware/logger.js';
+import { ThinkingLevel } from '@google/genai';
 
 const router = Router();
 
@@ -354,6 +355,7 @@ Você está falando com o ${safeUserName}`;
         config: {
           tools: [{ googleSearch: {} }],
           thinkingConfig: { thinkingBudget: -1, includeThoughts: true },
+          //thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }, //GEMINI 3
           systemInstruction,
           maxOutputTokens: 8192,
           temperature: 1,
