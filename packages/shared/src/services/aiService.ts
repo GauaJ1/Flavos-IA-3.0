@@ -66,7 +66,9 @@ async function getAuthHeader(): Promise<Record<string, string>> {
     const { getApp } = await import('firebase/app');
     const currentUser = getAuth(getApp()).currentUser;
     if (currentUser) {
-      const token = await currentUser.getIdToken();
+      // forceRefresh: true — garante token v\u00e1lido mesmo em sess\u00f5es longas.
+      // O SDK s\u00f3 faz chamada de rede quando o token tem < 5min restantes.
+      const token = await currentUser.getIdToken(/* forceRefresh */ true);
       return { Authorization: `Bearer ${token}` };
     }
   } catch {

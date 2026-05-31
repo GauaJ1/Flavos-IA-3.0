@@ -2,7 +2,7 @@
 // Flavos IA 3.0 — ChatInput Component (with Media Upload)
 // ===================================================
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { APP_CONFIG } from '../utils/constants';
 import type { MediaAttachment } from '../types';
 
@@ -62,8 +62,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 }) => {
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState<MediaAttachment[]>([]);
+  const [pasteToast, setPasteToast] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pasteToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const resetHeight = () => {
     if (textareaRef.current) {
@@ -96,6 +98,46 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
   };
+
+  /** Exibe toast de confirmação de imagem colada */
+  const showPasteToast = useCallback(() => {
+    setPasteToast(true);
+    if (pasteToastTimer.current) clearTimeout(pasteToastTimer.current);
+    pasteToastTimer.current = setTimeout(() => setPasteToast(false), 2500);
+  }, []);
+
+  /** Lida com paste de imagens da área de transferência */
+  const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData?.items ?? []);
+    const imageItems = items.filter((item) => item.type.startsWith('image/'));
+    if (imageItems.length === 0) return;
+
+    // Previne o comportamento padrão de colar texto de imagem
+    e.preventDefault();
+
+    const currentCount = attachments.length;
+    const slotsAvailable = 5 - currentCount;
+    if (slotsAvailable <= 0) return;
+
+    const newAttachments: MediaAttachment[] = await Promise.all(
+      imageItems.slice(0, slotsAvailable).map(async (item, idx) => {
+        const file = item.getAsFile();
+        if (!file) return null;
+        const base64Data = await fileToBase64(file);
+        const previewUrl = URL.createObjectURL(file);
+        // Gera nome legível: "imagem-colada-1.png"
+        const ext = file.type.split('/')[1] || 'png';
+        const name = `imagem-colada-${currentCount + idx + 1}.${ext}`;
+        return { name, mimeType: file.type, base64Data, previewUrl } as MediaAttachment;
+      })
+    );
+
+    const valid = newAttachments.filter(Boolean) as MediaAttachment[];
+    if (valid.length > 0) {
+      setAttachments((prev) => [...prev, ...valid].slice(0, 5));
+      showPasteToast();
+    }
+  }, [attachments.length, showPasteToast]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -229,6 +271,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           onChange={handleChange}
           onInput={handleInput}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           placeholder={attachments.length > 0 ? 'Adicione uma pergunta sobre os arquivos...' : placeholder}
           disabled={disabled}
           maxLength={APP_CONFIG.MAX_MESSAGE_LENGTH}
@@ -361,6 +404,35 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           )}
         </div>
       </div>
+      {/* Toast de confirmação de imagem colada */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 90,
+          left: '50%',
+          transform: `translateX(-50%) translateY(${pasteToast ? 0 : 12}px)`,
+          opacity: pasteToast ? 1 : 0,
+          pointerEvents: 'none',
+          transition: 'opacity 0.25s ease, transform 0.25s cubic-bezier(0.34,1.56,0.64,1)',
+          background: 'var(--surface-variant, rgba(30,30,40,0.92))',
+          backdropFilter: 'blur(8px)',
+          border: '1px solid var(--border)',
+          borderRadius: 20,
+          padding: '8px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          fontSize: '0.85rem',
+          color: 'var(--text)',
+          zIndex: 9999,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.25)',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        <span className="material-symbols-rounded" style={{ fontSize: 18, color: 'var(--primary)' }}>image</span>
+        Imagem colada da área de transferência
+      </div>
+
       <p
         style={{
           fontSize: '0.78rem',

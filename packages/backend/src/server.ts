@@ -3,6 +3,7 @@
 // ===================================================
 
 import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -13,7 +14,12 @@ import adminRouter from './routes/admin.js';
 import { audit } from './middleware/logger.js';
 import { requestIdMiddleware } from './middleware/requestId.js';
 
-dotenv.config({ path: '../../.env' });
+// Caminho absoluto calculado a partir deste arquivo — funciona tanto em
+// localhost (monorepo) quanto na VPS (PM2), independente do CWD do processo.
+const __dirname = dirname(fileURLToPath(import.meta.url));
+// dist/server.js → sobe 3 níveis para a raiz do monorepo onde fica o .env
+const ROOT_ENV = resolve(__dirname, '..', '..', '..', '.env');
+dotenv.config({ path: ROOT_ENV });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
