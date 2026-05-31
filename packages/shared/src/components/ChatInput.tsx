@@ -119,7 +119,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     const slotsAvailable = 5 - currentCount;
     if (slotsAvailable <= 0) return;
 
-    const newAttachments: MediaAttachment[] = await Promise.all(
+    const newAttachments: (MediaAttachment | null)[] = await Promise.all(
       imageItems.slice(0, slotsAvailable).map(async (item, idx) => {
         const file = item.getAsFile();
         if (!file) return null;
